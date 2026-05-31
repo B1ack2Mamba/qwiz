@@ -24,6 +24,7 @@ import {
   CombatTrainingRewardRank,
   GameProfile,
   ProfessionId,
+  TeamDirectiveId,
   canEnterDungeon,
   canForgeEnhancement,
   changeProfession,
@@ -42,11 +43,14 @@ import {
   getProfessionChangeCost,
   getProfessionChangeMode,
   getProfessionSeason,
+  getTeamDirective,
   getPower,
   getProfession,
   professions,
   refreshDailyProfile,
   resourceLabels,
+  setTeamDirective,
+  teamDirectives,
 } from "../lib/companyGame";
 
 const SELECTED_EMPLOYEE_KEY = "qwiz-selected-employee-id";
@@ -102,6 +106,7 @@ export default function HomePage() {
   });
 
   const profession = profile ? getProfession(profile.professionId) : professions[0];
+  const activeDirective = profile ? getTeamDirective(profile.teamDirectiveId) : teamDirectives[0];
   const professionSeason = profile ? getProfessionSeason(profile.dayKey) : null;
   const freeProfessionChangeAvailable =
     profile && professionSeason ? profile.professionChangeSeasonKey !== professionSeason.key : false;
@@ -109,10 +114,6 @@ export default function HomePage() {
   const monthlyReadiness = profile
     ? Math.min(100, Math.round(((profile.battleContribution + rankedEmployees.length * 8) / 140) * 100))
     : 0;
-  const totalResources = profile
-    ? Object.values(profile.resources).reduce((total, amount) => total + amount, 0)
-    : 0;
-
   useEffect(() => {
     const selectedEmployeeId = window.localStorage.getItem(SELECTED_EMPLOYEE_KEY) || undefined;
     const token = window.localStorage.getItem(SESSION_TOKEN_KEY) || "";
@@ -313,6 +314,16 @@ export default function HomePage() {
 
     const nextProfile = contributeToBattle(profile);
     updateProfile(nextProfile, nextProfile === profile ? "Нужны провиант и эфир." : "Вклад в битву внесен.");
+  }
+
+  function runTeamDirective(directiveId: TeamDirectiveId) {
+    if (!profile) {
+      return;
+    }
+
+    const directive = getTeamDirective(directiveId);
+    const nextProfile = setTeamDirective(profile, directive.id);
+    updateProfile(nextProfile, nextProfile === profile ? `Приказ уже активен: ${directive.name}.` : `Приказ отряду: ${directive.name}.`);
   }
 
   function runCombatTrainingReward(wave: number, defeatedCount: number, rank: CombatTrainingRewardRank) {
@@ -602,7 +613,22 @@ export default function HomePage() {
                 <span className="section-kicker">Ежедневные задания</span>
                 <h2>Усиление через активность</h2>
               </div>
-              <span className="status-pill waiting">Ресурсов: {totalResources}</span>
+              <span className="status-pill waiting">{activeDirective.focus}</span>
+            </div>
+            <div className="directive-grid" aria-label="Приказ отряду">
+              {teamDirectives.map((directive) => (
+                <button
+                  className={`directive-card${profile.teamDirectiveId === directive.id ? " is-selected" : ""}`}
+                  key={directive.id}
+                  onClick={() => runTeamDirective(directive.id)}
+                  type="button"
+                >
+                  <span className="section-kicker">{directive.focus}</span>
+                  <strong>{directive.name}</strong>
+                  <span>{directive.description}</span>
+                  <small>{directive.bonus}</small>
+                </button>
+              ))}
             </div>
             <div className="mission-grid">
               {dailyMissions.map((mission) => {

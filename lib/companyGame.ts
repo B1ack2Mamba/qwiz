@@ -6,6 +6,7 @@ export type EnhancementId = "strike" | "guard" | "route" | "spark" | "workbench"
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
+export type TeamDirectiveId = "hunt" | "command" | "research" | "market";
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
@@ -57,11 +58,20 @@ export type Dungeon = {
   teamContribution: number;
 };
 
+export type TeamDirective = {
+  id: TeamDirectiveId;
+  name: string;
+  focus: string;
+  description: string;
+  bonus: string;
+};
+
 export type GameProfile = {
   employeeId: string;
   dayKey: string;
   professionId: ProfessionId;
   professionChangeSeasonKey: string;
+  teamDirectiveId: TeamDirectiveId;
   level: number;
   xp: number;
   energy: number;
@@ -81,6 +91,7 @@ type LegacyGameProfile = Partial<GameProfile> & {
 };
 
 const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "workbench", "banner"];
+const DEFAULT_TEAM_DIRECTIVE_ID: TeamDirectiveId = "command";
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
 
 export const PROFESSION_SEASON_LENGTH_DAYS = 14;
@@ -97,6 +108,37 @@ export const resourceLabels: Record<ResourceId, string> = {
   schematics: "Схемы",
   supplies: "Провиант",
 };
+
+export const teamDirectives: TeamDirective[] = [
+  {
+    id: "hunt",
+    name: "Охота",
+    focus: "Фарм мобов",
+    description: "Отряд давит боевые зоны и быстрее превращает зачистки в вклад.",
+    bonus: "+2 вклад за тренировки, +ресурс за плотные волны",
+  },
+  {
+    id: "command",
+    name: "Командование",
+    focus: "Стратегия группы",
+    description: "Тактик держит общий план, поднимая силу героя и месячную готовность.",
+    bonus: "+12 сила героя, +3 к вкладу в битву",
+  },
+  {
+    id: "research",
+    name: "Исследование",
+    focus: "Головоломки и квизы",
+    description: "Команда разбирает схемы, маршруты и логические задания ради чертежей.",
+    bonus: "+схемы и XP за ежедневные активности",
+  },
+  {
+    id: "market",
+    name: "Рынок",
+    focus: "Деньги, ресурсы, крафт",
+    description: "Отряд работает через снабжение: больше провианта и дешевле часть крафта.",
+    bonus: "+провиант за задания, -1 провиант в цене усилений",
+  },
+];
 
 export const professions: Profession[] = [
   {
@@ -298,6 +340,7 @@ export function createGameProfile(employeeId: string, dayKey: string): GameProfi
     dayKey,
     professionId: professionFromEmployee(employeeId),
     professionChangeSeasonKey: "",
+    teamDirectiveId: DEFAULT_TEAM_DIRECTIVE_ID,
     level: 1,
     xp: 0,
     energy: 4,
@@ -337,6 +380,10 @@ export function refreshDailyProfile(profile: GameProfile, dayKey: string) {
 
 export function getProfession(id: ProfessionId) {
   return professions.find((profession) => profession.id === id) || professions[0];
+}
+
+export function getTeamDirective(id: TeamDirectiveId | undefined) {
+  return teamDirectives.find((directive) => directive.id === id) || teamDirectives.find((directive) => directive.id === DEFAULT_TEAM_DIRECTIVE_ID)!;
 }
 
 export function getProfessionSeason(dayKey: string) {
@@ -385,7 +432,8 @@ export function getEnhancementPower(profile: GameProfile) {
 
 export function getPower(profile: GameProfile) {
   const professionPower = profile.professionId === "tactician" ? 20 : 0;
-  return profile.level * 25 + getEnhancementPower(profile) + profile.battleContribution + professionPower;
+  const directivePower = getTeamDirective(profile.teamDirectiveId).id === "command" ? 12 : 0;
+  return profile.level * 25 + getEnhancementPower(profile) + profile.battleContribution + professionPower + directivePower;
 }
 
 export function getDungeonPower(profile: GameProfile, dungeon: Dungeon) {
@@ -410,6 +458,10 @@ export function getEnhancementCost(profile: GameProfile, enhancement: Enhancemen
 
   if (profile.professionId === "artisan" && (cost.ore || 0) > 0) {
     cost.ore = Math.max(0, (cost.ore || 0) - 1);
+  }
+
+  if (getTeamDirective(profile.teamDirectiveId).id === "market" && (cost.supplies || 0) > 0) {
+    cost.supplies = Math.max(0, (cost.supplies || 0) - 1);
   }
 
   return compactResources(cost);
@@ -441,9 +493,11 @@ export function completeMission(profile: GameProfile, mission: DailyMission) {
 
   const next = cloneProfile(profile);
   next.energy -= 1;
-  next.xp += mission.power;
+  next.xp += mission.power + getDirectiveMissionXp(profile, mission);
   next.completedMissions.push(mission.id);
   addRewards(next.resources, mission.rewards);
+  addRewards(next.resources, getDirectiveMissionRewards(profile, mission));
+  next.battleContribution += getDirectiveMissionContribution(profile);
 
   if (next.professionId === "miner") {
     next.resources.ore += 1;
@@ -500,7 +554,7 @@ export function contributeToBattle(profile: GameProfile) {
   const next = cloneProfile(profile);
   next.resources.supplies -= 1;
   next.resources.essence -= 1;
-  next.battleContribution += next.professionId === "tactician" ? 14 : 9;
+  next.battleContribution += (next.professionId === "tactician" ? 14 : 9) + (getTeamDirective(next.teamDirectiveId).id === "command" ? 3 : 0);
   next.log.unshift("Вклад внесен в месячную битву.");
   return touch(next);
 }
@@ -509,9 +563,13 @@ export function getCombatTrainingReward(profile: GameProfile, wave: number, defe
   const safeWave = Math.max(1, Math.floor(wave));
   const safeDefeatedCount = Math.max(1, Math.floor(defeatedCount));
   const rankBonusPercent = getCombatTrainingRankBonus(rank);
-  const battleContribution = scaleRankReward((profile.professionId === "tactician" ? 5 : 3) + safeWave, rankBonusPercent);
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const battleContribution = scaleRankReward(
+    (profile.professionId === "tactician" ? 5 : 3) + safeWave + (directiveId === "hunt" ? 2 : directiveId === "command" ? 1 : 0),
+    rankBonusPercent,
+  );
   const resources = compactResources({
-    supplies: 1 + (rank === "S" || rank === "A" ? 1 : 0),
+    supplies: 1 + (rank === "S" || rank === "A" ? 1 : 0) + (directiveId === "hunt" && safeDefeatedCount >= 3 ? 1 : 0),
     essence: (safeWave >= 2 ? 1 : 0) + (rank === "S" ? 1 : 0),
     ore: (safeDefeatedCount >= 4 ? 1 : 0) + (rank === "S" && safeWave >= 3 ? 1 : 0),
   });
@@ -542,6 +600,18 @@ export function claimCombatTrainingReward(profile: GameProfile, wave: number, de
 
   applyLevelUps(next);
   next.log.unshift(`Тренировочная волна ${Math.max(1, Math.floor(wave))} зачищена. Ранг: ${rank}.`);
+  return touch(next);
+}
+
+export function setTeamDirective(profile: GameProfile, directiveId: TeamDirectiveId) {
+  const directive = getTeamDirective(directiveId);
+  if (profile.teamDirectiveId === directive.id) {
+    return profile;
+  }
+
+  const next = cloneProfile(profile);
+  next.teamDirectiveId = directive.id;
+  next.log.unshift(`Приказ отряду изменен: ${directive.name}.`);
   return touch(next);
 }
 
@@ -592,6 +662,7 @@ function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile
     dayKey: legacy.dayKey || dayKey,
     professionId: isProfessionId(legacy.professionId) ? legacy.professionId : professionFromEmployee(legacy.employeeId || "local"),
     professionChangeSeasonKey: typeof legacy.professionChangeSeasonKey === "string" ? legacy.professionChangeSeasonKey : "",
+    teamDirectiveId: isTeamDirectiveId(legacy.teamDirectiveId) ? legacy.teamDirectiveId : DEFAULT_TEAM_DIRECTIVE_ID,
     level: Math.max(1, Math.floor(Number(legacy.level || 1))),
     xp: Math.max(0, Math.floor(Number(legacy.xp || 0))),
     energy: Math.max(0, Math.floor(Number(legacy.energy ?? 4))),
@@ -624,8 +695,35 @@ function normalizeDungeonIds(ids: string[] | undefined): DungeonId[] {
   return ids.filter((id): id is DungeonId => validIds.has(id as DungeonId));
 }
 
+function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission): Partial<ResourceBag> {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+
+  if (directiveId === "research" && ["knowledge", "maze", "merge", "cipher"].includes(mission.id)) {
+    return { schematics: 1 };
+  }
+
+  if (directiveId === "market") {
+    return { supplies: 1 };
+  }
+
+  return {};
+}
+
+function getDirectiveMissionXp(profile: GameProfile, mission: DailyMission) {
+  return getTeamDirective(profile.teamDirectiveId).id === "research" && ["knowledge", "maze", "merge", "cipher"].includes(mission.id) ? 6 : 0;
+}
+
+function getDirectiveMissionContribution(profile: GameProfile) {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  return directiveId === "hunt" ? 2 : directiveId === "command" ? 1 : 0;
+}
+
 function isProfessionId(id: unknown): id is ProfessionId {
   return typeof id === "string" && professions.some((profession) => profession.id === id);
+}
+
+function isTeamDirectiveId(id: unknown): id is TeamDirectiveId {
+  return typeof id === "string" && teamDirectives.some((directive) => directive.id === id);
 }
 
 function getProfessionSeasonIndex(dayKey: string) {
