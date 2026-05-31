@@ -322,8 +322,9 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
         )}
         <div
           className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving, profile.professionId)}
-          style={playerArenaStyle(combatState, profile.professionId)}
+          style={playerArenaStyle(combatState, profile.professionId, spriteWeaponLevel)}
         >
+          {spriteSheet && <b className={styles.playerStageAura} aria-hidden="true" />}
           {spriteSheet ? (
             <span
               aria-label={getCharacterSpriteLabel(profile.professionId)}
@@ -693,7 +694,49 @@ const playerAnimationProfiles: Record<GameProfile["professionId"], { attackRotat
   warden: { attackRotateScale: 0.72 },
 };
 
-function playerArenaStyle(state: CombatState, professionId: GameProfile["professionId"]): CSSProperties {
+const stageAuraTones = [
+  {
+    color: "rgba(217, 242, 233, 0)",
+    highlight: "rgba(255, 255, 255, 0)",
+    ring: "rgba(217, 242, 233, 0)",
+  },
+  {
+    color: "rgba(217, 242, 233, 0.58)",
+    highlight: "rgba(255, 255, 255, 0.34)",
+    ring: "rgba(217, 242, 233, 0.2)",
+  },
+  {
+    color: "rgba(142, 199, 238, 0.62)",
+    highlight: "rgba(255, 255, 255, 0.42)",
+    ring: "rgba(142, 199, 238, 0.24)",
+  },
+  {
+    color: "rgba(255, 242, 212, 0.68)",
+    highlight: "rgba(255, 255, 255, 0.5)",
+    ring: "rgba(255, 242, 212, 0.28)",
+  },
+  {
+    color: "rgba(255, 255, 255, 0.72)",
+    highlight: "rgba(142, 199, 238, 0.58)",
+    ring: "rgba(255, 242, 212, 0.34)",
+  },
+];
+
+function playerStageAuraStyle(weaponLevel: number): CSSProperties {
+  const tier = Math.max(0, Math.min(4, Math.floor(weaponLevel)));
+  const tone = stageAuraTones[tier];
+
+  return {
+    "--player-stage-aura-color": tone.color,
+    "--player-stage-aura-highlight": tone.highlight,
+    "--player-stage-aura-opacity": tier === 0 ? 0 : Math.min(0.52, 0.18 + tier * 0.08),
+    "--player-stage-aura-ring": tone.ring,
+    "--player-stage-aura-size": `${48 + tier * 12}px`,
+    "--player-stage-aura-speed": `${Math.max(980, 1640 - tier * 130)}ms`,
+  } as CSSProperties;
+}
+
+function playerArenaStyle(state: CombatState, professionId: GameProfile["professionId"], weaponLevel: number): CSSProperties {
   const facing = state.player.facing;
   const faceSign = facing.x < -0.08 ? -1 : 1;
   const animationProfile = playerAnimationProfiles[professionId];
@@ -709,6 +752,7 @@ function playerArenaStyle(state: CombatState, professionId: GameProfile["profess
 
   return {
     ...positionStyle(state.player.position),
+    ...playerStageAuraStyle(weaponLevel),
     "--player-attack-pull-x": `${attackPullX}px`,
     "--player-attack-pull-y": `${attackPullY}px`,
     "--player-attack-strike-x": `${attackStrikeX}px`,

@@ -724,6 +724,12 @@
   --player-walk-recover-lift: -3px;
   --player-smear-ready-opacity: 0.34;
   --player-smear-strike-opacity: 0.22;
+  --player-stage-aura-color: rgba(217, 242, 233, 0);
+  --player-stage-aura-highlight: rgba(255, 255, 255, 0);
+  --player-stage-aura-opacity: 0;
+  --player-stage-aura-ring: rgba(217, 242, 233, 0);
+  --player-stage-aura-size: 48px;
+  --player-stage-aura-speed: 1640ms;
   --player-sprite-width: 78px;
   --player-sprite-height: 132px;
   --player-sprite-bottom: 0px;
@@ -737,6 +743,29 @@
   background: transparent;
   box-shadow: none;
   transform: translate(-50%, -72%);
+}
+
+.playerStageAura {
+  position: absolute;
+  bottom: calc(var(--player-sprite-bottom) + 11px);
+  left: 50%;
+  z-index: 1;
+  display: block;
+  width: var(--player-stage-aura-size);
+  height: calc(var(--player-stage-aura-size) * 0.34);
+  border: 1px solid var(--player-stage-aura-ring);
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--player-stage-aura-highlight), transparent 38%),
+    radial-gradient(ellipse at 50% 50%, var(--player-stage-aura-color), transparent 72%);
+  box-shadow:
+    0 0 18px var(--player-stage-aura-ring),
+    inset 0 0 14px var(--player-stage-aura-color);
+  opacity: var(--player-stage-aura-opacity);
+  pointer-events: none;
+  transform: translateX(-50%) rotate(-3deg);
+  transform-origin: 50% 50%;
+  animation: playerStageAuraPulse var(--player-stage-aura-speed) ease-in-out infinite;
 }
 
 .player.hasSprite.professionPathfinder {
@@ -885,6 +914,7 @@
   position: absolute;
   bottom: var(--player-sprite-bottom);
   left: 50%;
+  z-index: 2;
   display: block;
   width: var(--player-sprite-width);
   height: var(--player-sprite-height);
@@ -1386,6 +1416,19 @@
   100% {
     opacity: 0;
     transform: translate(0, 0) scaleX(1);
+  }
+}
+
+@keyframes playerStageAuraPulse {
+  0%,
+  100% {
+    filter: blur(0);
+    transform: translateX(-50%) rotate(-3deg) scale(0.94);
+  }
+
+  50% {
+    filter: blur(0.4px);
+    transform: translateX(-50%) rotate(-3deg) scale(1.08);
   }
 }
 
