@@ -2,36 +2,44 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AppState,
   Completion,
+  Quiz,
   WeeklyWinner,
   calculateScore,
   createInitialState,
   displayDate,
   formatNumber,
   getTodayKey,
-  getTodayQuiz,
   getWeekStartKey,
+  pickDailyQuiz,
 } from "../lib/qwizData";
 
-const STORAGE_KEY = "qwiz-team-league-state-v2";
+const SELECTED_EMPLOYEE_KEY = "qwiz-selected-employee-id";
 
 type ToastState = {
   message: string;
   visible: boolean;
 };
 
+type BootstrapResponse = {
+  source: "local" | "supabase";
+  state: AppState;
+};
+
 export default function HomePage() {
   const [appState, setAppState] = useState<AppState>(() => createInitialState());
-  const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<BootstrapResponse["source"]>("local");
+  const [loadError, setLoadError] = useState("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [currentAnswers, setCurrentAnswers] = useState<number[]>([]);
   const [toast, setToast] = useState<ToastState>({ message: "", visible: false });
 
   const todayKey = useMemo(() => getTodayKey(), []);
   const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
-  const quiz = useMemo(() => getTodayQuiz(todayKey), [todayKey]);
+  const quiz = useMemo(() => pickDailyQuiz(appState.quizzes, todayKey), [appState.quizzes, todayKey]);
   const selectedEmployee =
     appState.employees.find((employee) => employee.id === appState.selectedEmployeeId) || appState.employees[0];
-  const completion = appState.completions[todayKey]?.[selectedEmployee.id] || null;
+  const completion = selectedEmployee ? appState.completions[todayKey]?.[selectedEmployee.id] || null : null;
   const todayCompletions = Object.values(appState.completions[todayKey] || {});
   const rankedEmployees = appState.employees.slice().sort((a, b) => {
     if (b.weeklyPoints !== a.weeklyPoints) {
@@ -43,22 +51,10 @@ export default function HomePage() {
   const alreadyAwarded = appState.awardHistory.some((award) => award.weekKey === weekStartKey);
 
   useEffect(() => {
-    const storedState = window.localStorage.getItem(STORAGE_KEY);
-    if (storedState) {
-      try {
-        setAppState({ ...createInitialState(), ...JSON.parse(storedState) });
-      } catch (error) {
-        console.warn("Cannot read stored Qwiz state", error);
-      }
-    }
-    setHydrated(true);
+    const selectedEmployeeId = window.localStorage.getItem(SELECTED_EMPLOYEE_KEY) || undefined;
+    void loadBootstrap(selectedEmployeeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (hydrated) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-    }
-  }, [appState, hydrated]);
 
   useEffect(() => {
     if (!toast.visible) {
@@ -68,6 +64,33 @@ export default function HomePage() {
     const timer = window.setTimeout(() => setToast((current) => ({ ...current, visible: false })), 2600);
     return () => window.clearTimeout(timer);
   }, [toast.visible]);
+
+  async function loadBootstrap(selectedEmployeeId = appState.selectedEmployeeId) {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const params = new URLSearchParams({ dateKey: todayKey });
+      if (selectedEmployeeId) {
+        params.set("employeeId", selectedEmployeeId);
+      }
+
+      const response = await fetch(`/api/bootstrap?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить данные приложения.");
+      }
+
+      const payload = (await response.json()) as BootstrapResponse;
+      setAppState(payload.state);
+      setDataSource(payload.source);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Не удалось загрузить данные приложения.");
+      setAppState(createInitialState());
+      setDataSource("local");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function showToast(message: string) {
     setToast({ message, visible: true });
@@ -79,6 +102,7 @@ export default function HomePage() {
   }
 
   function selectEmployee(employeeId: string) {
+    window.localStorage.setItem(SELECTED_EMPLOYEE_KEY, employeeId);
     setAppState((current) => ({ ...current, selectedEmployeeId: employeeId }));
     resetQuizProgress();
   }
@@ -92,7 +116,7 @@ export default function HomePage() {
   }
 
   function submitAnswer() {
-    if (currentAnswers[currentQuestionIndex] === undefined) {
+    if (!quiz || currentAnswers[currentQuestionIndex] === undefined) {
       return;
     }
 
@@ -101,18 +125,22 @@ export default function HomePage() {
       return;
     }
 
-    completeQuiz();
+    completeQuiz(quiz);
   }
 
-  function completeQuiz() {
+  function completeQuiz(activeQuiz: Quiz) {
+    if (!selectedEmployee) {
+      return;
+    }
+
     if (completion) {
       showToast("Квиз за сегодня уже закрыт.");
       return;
     }
 
-    const result = calculateScore(quiz, currentAnswers, selectedEmployee.streak);
+    const result = calculateScore(activeQuiz, currentAnswers, selectedEmployee.streak);
     const nextCompletion: Completion = {
-      quizId: quiz.id,
+      quizId: activeQuiz.id,
       score: result.score,
       correct: result.correct,
       accuracy: result.accuracy,
@@ -143,8 +171,8 @@ export default function HomePage() {
     }));
 
     resetQuizProgress();
-    syncAttempt(selectedEmployee.id, nextCompletion);
-    showToast(`Начислено ${result.score} баллов: ${result.correct}/${quiz.questions.length} правильных.`);
+    void syncAttempt(selectedEmployee.id, nextCompletion);
+    showToast(`Начислено ${result.score} баллов: ${result.correct}/${activeQuiz.questions.length} правильных.`);
   }
 
   function handleWeeklyAward() {
@@ -174,24 +202,13 @@ export default function HomePage() {
       ],
     }));
 
-    syncWeeklyAward(winners);
+    void syncWeeklyAward(winners);
     showToast("Недельная выдача сформирована.");
-  }
-
-  function resetDemo() {
-    const confirmed = window.confirm("Сбросить демо-данные Qwiz?");
-    if (!confirmed) {
-      return;
-    }
-
-    setAppState(createInitialState());
-    resetQuizProgress();
-    showToast("Демо-данные сброшены.");
   }
 
   async function syncAttempt(employeeId: string, attempt: Completion) {
     try {
-      await fetch("/api/quiz-attempts", {
+      const response = await fetch("/api/quiz-attempts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,8 +222,16 @@ export default function HomePage() {
           streakAfter: attempt.streakAfter,
         }),
       });
+      const payload = await response.json();
+
+      if (payload.duplicate) {
+        showToast("Сегодняшняя попытка уже была сохранена.");
+      }
+
+      await loadBootstrap(employeeId);
     } catch (error) {
       console.warn("Attempt sync failed", error);
+      showToast("Результат сохранен локально, синхронизация не прошла.");
     }
   }
 
@@ -217,9 +242,19 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ weekKey: weekStartKey, winners }),
       });
+      await loadBootstrap(appState.selectedEmployeeId);
     } catch (error) {
       console.warn("Award sync failed", error);
+      showToast("Выдача сохранена локально, синхронизация не прошла.");
     }
+  }
+
+  if (!selectedEmployee) {
+    return (
+      <main className="empty-page">
+        <div className="empty-state">Нет сотрудников для отображения.</div>
+      </main>
+    );
   }
 
   return (
@@ -282,8 +317,8 @@ export default function HomePage() {
           </div>
         </section>
 
-        <button className="ghost-button" type="button" onClick={resetDemo}>
-          Сбросить демо
+        <button className="ghost-button" type="button" onClick={() => void loadBootstrap(selectedEmployee.id)}>
+          Обновить данные
         </button>
       </aside>
 
@@ -299,6 +334,8 @@ export default function HomePage() {
           </div>
         </header>
 
+        {loadError && <div className="alert-line">{loadError}</div>}
+
         <section className="metrics-grid" aria-label="Показатели участника">
           <Metric label="Всего баллов" value={formatNumber(selectedEmployee.totalPoints)} />
           <Metric label="Баллы недели" value={formatNumber(selectedEmployee.weeklyPoints)} />
@@ -311,8 +348,12 @@ export default function HomePage() {
 
         <div className="workspace-grid">
           <section id="daily-quiz" className="panel quiz-panel" aria-live="polite">
-            {completion ? (
-              <CompletedQuiz employeeName={selectedEmployee.name} completion={completion} />
+            {loading ? (
+              <div className="empty-state">Загружаем квиз.</div>
+            ) : !quiz ? (
+              <div className="empty-state">На сегодня нет активного квиза.</div>
+            ) : completion ? (
+              <CompletedQuiz employeeName={selectedEmployee.name} completion={completion} quiz={quiz} />
             ) : (
               <ActiveQuiz
                 answers={currentAnswers}
@@ -320,6 +361,7 @@ export default function HomePage() {
                 onAnswer={chooseAnswer}
                 onBack={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
                 onSubmit={submitAnswer}
+                quiz={quiz}
               />
             )}
           </section>
@@ -330,6 +372,7 @@ export default function HomePage() {
                 <span className="section-kicker">Текущая неделя</span>
                 <h2 id="leaderboard-title">Рейтинг</h2>
               </div>
+              <span className="status-pill waiting">{dataSource === "supabase" ? "Supabase" : "Локально"}</span>
             </div>
             <div className="leaderboard-list">
               {rankedEmployees.map((employee, index) => {
@@ -442,123 +485,125 @@ export default function HomePage() {
       </div>
     </div>
   );
+}
 
-  function ActiveQuiz({
-    answers,
-    currentQuestionIndex,
-    onAnswer,
-    onBack,
-    onSubmit,
-  }: {
-    answers: number[];
-    currentQuestionIndex: number;
-    onAnswer: (answerIndex: number) => void;
-    onBack: () => void;
-    onSubmit: () => void;
-  }) {
-    const question = quiz.questions[currentQuestionIndex];
-    const selectedAnswer = answers[currentQuestionIndex];
-    const progress = Math.round((currentQuestionIndex / quiz.questions.length) * 100);
-    const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
+function ActiveQuiz({
+  answers,
+  currentQuestionIndex,
+  onAnswer,
+  onBack,
+  onSubmit,
+  quiz,
+}: {
+  answers: number[];
+  currentQuestionIndex: number;
+  onAnswer: (answerIndex: number) => void;
+  onBack: () => void;
+  onSubmit: () => void;
+  quiz: Quiz;
+}) {
+  const question = quiz.questions[currentQuestionIndex];
+  const selectedAnswer = answers[currentQuestionIndex];
+  const progress = Math.round((currentQuestionIndex / quiz.questions.length) * 100);
+  const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
 
-    return (
-      <>
-        <div className="panel-heading">
+  return (
+    <>
+      <div className="panel-heading">
+        <div>
+          <span className="section-kicker">Ежедневный квиз</span>
+          <h2>{quiz.title}</h2>
+        </div>
+      </div>
+      <div className="quiz-meta">
+        <span className="pill">{quiz.category}</span>
+        <span className="pill">{quiz.questions.length} вопросов</span>
+        <span className="pill">до {quiz.questions.length * 12 + 32} баллов</span>
+      </div>
+      <div className="progress-track" aria-label="Прогресс квиза">
+        <div className="progress-bar" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="question-box">
+        <span className="question-number">
+          Вопрос {currentQuestionIndex + 1} из {quiz.questions.length}
+        </span>
+        <h3>{question.text}</h3>
+        <div className="option-list" role="radiogroup" aria-label="Варианты ответа">
+          {question.options.map((option, index) => (
+            <button
+              className={`option-button${selectedAnswer === index ? " is-selected" : ""}`}
+              key={option}
+              type="button"
+              aria-pressed={selectedAnswer === index}
+              onClick={() => onAnswer(index)}
+            >
+              <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+              <span className="option-text">{option}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="panel-actions">
+        <button className="secondary-button" type="button" disabled={currentQuestionIndex === 0} onClick={onBack}>
+          Назад
+        </button>
+        <button className="primary-button" type="button" disabled={selectedAnswer === undefined} onClick={onSubmit}>
+          {isLastQuestion ? "Завершить" : "Дальше"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function CompletedQuiz({ employeeName, completion, quiz }: { employeeName: string; completion: Completion; quiz: Quiz }) {
+  return (
+    <>
+      <div className="panel-heading">
+        <div>
+          <span className="section-kicker">Ежедневный квиз</span>
+          <h2>Сегодня закрыто</h2>
+        </div>
+      </div>
+      <div className="result-card">
+        <div className="result-score">
           <div>
-            <span className="section-kicker">Ежедневный квиз</span>
-            <h2>{quiz.title}</h2>
+            <div className="score-number">+{completion.score}</div>
+            <div className="score-label">баллов за день</div>
+          </div>
+          <p className="result-copy">{employeeName} закрепляет серию и остается в недельном рейтинге.</p>
+        </div>
+        <div className="result-stats">
+          <div className="result-stat">
+            <span>Правильных</span>
+            <strong>
+              {completion.correct}/{quiz.questions.length}
+            </strong>
+          </div>
+          <div className="result-stat">
+            <span>Точность</span>
+            <strong>{completion.accuracy}%</strong>
+          </div>
+          <div className="result-stat">
+            <span>Серия</span>
+            <strong>{completion.streakAfter}</strong>
           </div>
         </div>
-        <div className="quiz-meta">
-          <span className="pill">{quiz.category}</span>
-          <span className="pill">{quiz.questions.length} вопросов</span>
-          <span className="pill">до {quiz.questions.length * 12 + 32} баллов</span>
+        <div className="review-list">
+          {quiz.questions.map((question, index) => {
+            const selected = completion.answers[index];
+            const isCorrect = selected === question.correct;
+            return (
+              <div className={`review-item ${isCorrect ? "is-correct" : "is-wrong"}`} key={question.text}>
+                <strong>{question.text}</strong>
+                <span className="review-answer">Ваш ответ: {question.options[selected] || "нет ответа"}</span>
+                {!isCorrect && <span className="review-answer">Правильно: {question.options[question.correct]}</span>}
+              </div>
+            );
+          })}
         </div>
-        <div className="progress-track" aria-label="Прогресс квиза">
-          <div className="progress-bar" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="question-box">
-          <span className="question-number">
-            Вопрос {currentQuestionIndex + 1} из {quiz.questions.length}
-          </span>
-          <h3>{question.text}</h3>
-          <div className="option-list" role="radiogroup" aria-label="Варианты ответа">
-            {question.options.map((option, index) => (
-              <button
-                className={`option-button${selectedAnswer === index ? " is-selected" : ""}`}
-                key={option}
-                type="button"
-                aria-pressed={selectedAnswer === index}
-                onClick={() => onAnswer(index)}
-              >
-                <span className="option-letter">{String.fromCharCode(65 + index)}</span>
-                <span className="option-text">{option}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="panel-actions">
-          <button className="secondary-button" type="button" disabled={currentQuestionIndex === 0} onClick={onBack}>
-            Назад
-          </button>
-          <button className="primary-button" type="button" disabled={selectedAnswer === undefined} onClick={onSubmit}>
-            {isLastQuestion ? "Завершить" : "Дальше"}
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  function CompletedQuiz({ employeeName, completion }: { employeeName: string; completion: Completion }) {
-    return (
-      <>
-        <div className="panel-heading">
-          <div>
-            <span className="section-kicker">Ежедневный квиз</span>
-            <h2>Сегодня закрыто</h2>
-          </div>
-        </div>
-        <div className="result-card">
-          <div className="result-score">
-            <div>
-              <div className="score-number">+{completion.score}</div>
-              <div className="score-label">баллов за день</div>
-            </div>
-            <p className="result-copy">{employeeName} закрепляет серию и остается в недельном рейтинге.</p>
-          </div>
-          <div className="result-stats">
-            <div className="result-stat">
-              <span>Правильных</span>
-              <strong>
-                {completion.correct}/{quiz.questions.length}
-              </strong>
-            </div>
-            <div className="result-stat">
-              <span>Точность</span>
-              <strong>{completion.accuracy}%</strong>
-            </div>
-            <div className="result-stat">
-              <span>Серия</span>
-              <strong>{completion.streakAfter}</strong>
-            </div>
-          </div>
-          <div className="review-list">
-            {quiz.questions.map((question, index) => {
-              const selected = completion.answers[index];
-              const isCorrect = selected === question.correct;
-              return (
-                <div className={`review-item ${isCorrect ? "is-correct" : "is-wrong"}`} key={question.text}>
-                  <strong>{question.text}</strong>
-                  <span className="review-answer">Ваш ответ: {question.options[selected] || "нет ответа"}</span>
-                  {!isCorrect && <span className="review-answer">Правильно: {question.options[question.correct]}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </>
-    );
-  }
+      </div>
+    </>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

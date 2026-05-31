@@ -56,6 +56,7 @@ export type AppState = {
   selectedEmployeeId: string;
   employees: Employee[];
   prizePool: Prize[];
+  quizzes: Quiz[];
   completions: Record<string, Record<string, Completion>>;
   awardHistory: WeeklyAward[];
 };
@@ -316,6 +317,13 @@ export function createInitialState(): AppState {
     selectedEmployeeId: employeesSeed[0].id,
     employees: employeesSeed.map((employee) => ({ ...employee })),
     prizePool: prizePool.map((prize) => ({ ...prize })),
+    quizzes: quizzes.map((quiz) => ({
+      ...quiz,
+      questions: quiz.questions.map((question) => ({
+        ...question,
+        options: question.options.slice(),
+      })),
+    })),
     completions: {},
     awardHistory: [],
   };
@@ -367,11 +375,19 @@ export function displayDate(dateKey: string, options: Intl.DateTimeFormatOptions
 }
 
 export function getTodayQuiz(todayKey: string) {
+  return pickDailyQuiz(quizzes, todayKey);
+}
+
+export function pickDailyQuiz(availableQuizzes: Quiz[], todayKey: string) {
+  if (availableQuizzes.length === 0) {
+    return null;
+  }
+
   const checksum = todayKey
     .split("")
     .filter((char) => char !== "-")
     .reduce((total, char) => total + Number(char), 0);
-  return quizzes[checksum % quizzes.length];
+  return availableQuizzes[checksum % availableQuizzes.length];
 }
 
 export function calculateScore(quiz: Quiz, answers: number[], streak: number) {
