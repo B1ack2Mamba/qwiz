@@ -66,6 +66,12 @@ type AwardRow = {
   created_at: string;
 };
 
+type ScheduleRow = {
+  date_key: string;
+  quiz_id: string;
+  updated_at: string;
+};
+
 export type RecentAttempt = {
   employeeId: string;
   employeeName: string;
@@ -87,6 +93,13 @@ export type RecentPointTransaction = {
   createdAt: string;
 };
 
+export type QuizScheduleItem = {
+  dateKey: string;
+  quizId: string;
+  quizTitle: string;
+  updatedAt: string;
+};
+
 export type AdminSummary = {
   state: AppState;
   stats: {
@@ -99,6 +112,7 @@ export type AdminSummary = {
   };
   recentAttempts: RecentAttempt[];
   recentPointTransactions: RecentPointTransaction[];
+  quizSchedule: QuizScheduleItem[];
 };
 
 export async function loadQwizState(
@@ -106,7 +120,7 @@ export async function loadQwizState(
   todayKey: string,
   selectedEmployeeId?: string,
 ): Promise<AppState> {
-  const [employeesResult, prizesResult, quizzesResult, questionsResult, attemptsResult, awardsResult] =
+  const [employeesResult, prizesResult, quizzesResult, questionsResult, attemptsResult, awardsResult, scheduleResult] =
     await Promise.all([
       supabase
         .from("qwiz_employees")
@@ -127,6 +141,7 @@ export async function loadQwizState(
       supabase.from("qwiz_weekly_awards").select("week_start, winners, created_at").order("created_at", {
         ascending: false,
       }),
+      supabase.from("qwiz_quiz_schedule").select("quiz_id").eq("date_key", todayKey).maybeSingle(),
     ]);
 
   assertSupabaseResult("employees", employeesResult.error);
@@ -135,6 +150,7 @@ export async function loadQwizState(
   assertSupabaseResult("questions", questionsResult.error);
   assertSupabaseResult("attempts", attemptsResult.error);
   assertSupabaseResult("weekly_awards", awardsResult.error);
+  assertSupabaseResult("quiz_schedule", scheduleResult.error);
 
   const employees = ((employeesResult.data || []) as EmployeeRow[]).map(mapEmployee);
   const prizePool = ((prizesResult.data || []) as PrizeRow[]).map(mapPrize);
@@ -145,6 +161,7 @@ export async function loadQwizState(
 
   return {
     selectedEmployeeId: selectedEmployeeId || employees[0]?.id || fallback.selectedEmployeeId,
+    scheduledQuizId: typeof scheduleResult.data?.quiz_id === "string" ? scheduleResult.data.quiz_id : null,
     employees: employees.length > 0 ? employees : fallback.employees,
     prizePool: prizePool.length > 0 ? prizePool : fallback.prizePool,
     quizzes: quizzes.length > 0 ? quizzes : fallback.quizzes,
@@ -155,25 +172,33 @@ export async function loadQwizState(
 
 export async function loadAdminSummary(supabase: SupabaseClient, todayKey: string): Promise<AdminSummary> {
   const state = await loadQwizState(supabase, todayKey);
-  const [attemptsTodayResult, awardsResult, recentAttemptsResult, recentTransactionsResult] = await Promise.all([
-    supabase.from("qwiz_daily_attempts").select("*", { count: "exact", head: true }).eq("date_key", todayKey),
-    supabase.from("qwiz_weekly_awards").select("*", { count: "exact", head: true }),
-    supabase
-      .from("qwiz_daily_attempts")
-      .select("employee_id, quiz_id, score, correct_count, accuracy, answers, streak_after, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("qwiz_point_transactions")
-      .select("id, employee_id, amount, reason, source_type, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20),
-  ]);
+  const [attemptsTodayResult, awardsResult, recentAttemptsResult, recentTransactionsResult, scheduleResult] =
+    await Promise.all([
+      supabase.from("qwiz_daily_attempts").select("*", { count: "exact", head: true }).eq("date_key", todayKey),
+      supabase.from("qwiz_weekly_awards").select("*", { count: "exact", head: true }),
+      supabase
+        .from("qwiz_daily_attempts")
+        .select("employee_id, quiz_id, score, correct_count, accuracy, answers, streak_after, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("qwiz_point_transactions")
+        .select("id, employee_id, amount, reason, source_type, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("qwiz_quiz_schedule")
+        .select("date_key, quiz_id, updated_at")
+        .gte("date_key", todayKey)
+        .order("date_key", { ascending: true })
+        .limit(14),
+    ]);
 
   assertSupabaseResult("attempts_today_count", attemptsTodayResult.error);
   assertSupabaseResult("weekly_awards_count", awardsResult.error);
   assertSupabaseResult("recent_attempts", recentAttemptsResult.error);
   assertSupabaseResult("recent_point_transactions", recentTransactionsResult.error);
+  assertSupabaseResult("quiz_schedule_list", scheduleResult.error);
 
   const employeeById = new Map(state.employees.map((employee) => [employee.id, employee]));
   const quizById = new Map(state.quizzes.map((quiz) => [quiz.id, quiz]));
@@ -198,6 +223,12 @@ export async function loadAdminSummary(supabase: SupabaseClient, todayKey: strin
       createdAt: transaction.created_at,
     }),
   );
+  const quizSchedule = ((scheduleResult.data || []) as ScheduleRow[]).map((schedule) => ({
+    dateKey: schedule.date_key.slice(0, 10),
+    quizId: schedule.quiz_id,
+    quizTitle: quizById.get(schedule.quiz_id)?.title || schedule.quiz_id,
+    updatedAt: schedule.updated_at,
+  }));
 
   return {
     state,
@@ -211,6 +242,7 @@ export async function loadAdminSummary(supabase: SupabaseClient, todayKey: strin
     },
     recentAttempts,
     recentPointTransactions,
+    quizSchedule,
   };
 }
 

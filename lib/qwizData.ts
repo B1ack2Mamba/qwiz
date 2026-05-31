@@ -54,6 +54,7 @@ export type WeeklyAward = {
 
 export type AppState = {
   selectedEmployeeId: string;
+  scheduledQuizId: string | null;
   employees: Employee[];
   prizePool: Prize[];
   quizzes: Quiz[];
@@ -315,6 +316,7 @@ export const quizzes: Quiz[] = [
 export function createInitialState(): AppState {
   return {
     selectedEmployeeId: employeesSeed[0].id,
+    scheduledQuizId: null,
     employees: employeesSeed.map((employee) => ({ ...employee })),
     prizePool: prizePool.map((prize) => ({ ...prize })),
     quizzes: quizzes.map((quiz) => ({
@@ -378,9 +380,16 @@ export function getTodayQuiz(todayKey: string) {
   return pickDailyQuiz(quizzes, todayKey);
 }
 
-export function pickDailyQuiz(availableQuizzes: Quiz[], todayKey: string) {
+export function pickDailyQuiz(availableQuizzes: Quiz[], todayKey: string, scheduledQuizId?: string | null) {
   if (availableQuizzes.length === 0) {
     return null;
+  }
+
+  if (scheduledQuizId) {
+    const scheduledQuiz = availableQuizzes.find((quiz) => quiz.id === scheduledQuizId);
+    if (scheduledQuiz) {
+      return scheduledQuiz;
+    }
   }
 
   const checksum = todayKey

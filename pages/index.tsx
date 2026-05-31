@@ -46,7 +46,10 @@ export default function HomePage() {
 
   const todayKey = useMemo(() => getTodayKey(), []);
   const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
-  const quiz = useMemo(() => pickDailyQuiz(appState.quizzes, todayKey), [appState.quizzes, todayKey]);
+  const quiz = useMemo(
+    () => pickDailyQuiz(appState.quizzes, todayKey, appState.scheduledQuizId),
+    [appState.quizzes, appState.scheduledQuizId, todayKey],
+  );
   const selectedEmployee =
     appState.employees.find((employee) => employee.id === appState.selectedEmployeeId) || appState.employees[0];
   const completion = selectedEmployee ? appState.completions[todayKey]?.[selectedEmployee.id] || null : null;

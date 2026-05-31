@@ -878,7 +878,8 @@ button {
 }
 
 .admin-row,
-.quiz-admin-row {
+.quiz-admin-row,
+.schedule-row {
   display: grid;
   width: 100%;
   align-items: center;
@@ -926,6 +927,23 @@ button {
 
 .quiz-admin-row {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.schedule-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.schedule-row strong,
+.schedule-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.schedule-row span span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .toast {
@@ -1042,7 +1060,8 @@ button {
   }
 
   .admin-row,
-  .quiz-admin-row {
+  .quiz-admin-row,
+  .schedule-row {
     grid-template-columns: 1fr;
   }
 }

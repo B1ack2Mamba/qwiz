@@ -10,7 +10,7 @@ import {
   getTodayKey,
   getWeekStartKey,
 } from "../../lib/qwizData";
-import type { RecentAttempt, RecentPointTransaction } from "../../lib/qwizSupabase";
+import type { QuizScheduleItem, RecentAttempt, RecentPointTransaction } from "../../lib/qwizSupabase";
 
 type AdminSummary = {
   state: AppState;
@@ -24,6 +24,7 @@ type AdminSummary = {
   };
   recentAttempts: RecentAttempt[];
   recentPointTransactions: RecentPointTransaction[];
+  quizSchedule: QuizScheduleItem[];
 };
 
 type EmployeeForm = {
@@ -44,6 +45,11 @@ type PointsForm = {
   employeeId: string;
   includeWeekly: boolean;
   reason: string;
+};
+
+type ScheduleForm = {
+  dateKey: string;
+  quizId: string;
 };
 
 type QuizForm = {
@@ -88,6 +94,7 @@ export default function AdminPage() {
     },
     recentAttempts: [],
     recentPointTransactions: [],
+    quizSchedule: [],
   });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -102,6 +109,10 @@ export default function AdminPage() {
     includeWeekly: true,
     reason: "Бонус",
   });
+  const [scheduleForm, setScheduleForm] = useState<ScheduleForm>(() => ({
+    dateKey: getTodayKey(),
+    quizId: "",
+  }));
   const [prizeForm, setPrizeForm] = useState<PrizeForm>({ place: 1, title: "", detail: "" });
   const [quizForm, setQuizForm] = useState<QuizForm>({
     id: "",
@@ -145,7 +156,11 @@ export default function AdminPage() {
         throw new Error(response.status === 401 ? "Неверный PIN администратора." : "Не удалось загрузить админку.");
       }
 
-      setSummary((await response.json()) as AdminSummary);
+      const payload = (await response.json()) as AdminSummary;
+      setSummary(payload);
+      setScheduleForm((current) =>
+        current.quizId ? current : { ...current, quizId: payload.state.scheduledQuizId || "" },
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось загрузить админку.");
     } finally {
@@ -289,6 +304,26 @@ export default function AdminPage() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось изменить баллы.");
     }
+  }
+
+  async function submitSchedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      await postAdmin("/api/admin/schedule", scheduleForm);
+      setMessage(scheduleForm.quizId ? "Квиз дня назначен." : "Назначение на дату очищено.");
+      await loadSummary();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось сохранить расписание.");
+    }
+  }
+
+  function editSchedule(item: QuizScheduleItem) {
+    setScheduleForm({
+      dateKey: item.dateKey,
+      quizId: item.quizId,
+    });
   }
 
   async function submitPrize(event: FormEvent<HTMLFormElement>) {
@@ -469,6 +504,67 @@ export default function AdminPage() {
             >
               Закрыть неделю
             </button>
+          </div>
+        </section>
+
+        <section className="panel admin-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">План</span>
+              <h2>Расписание квизов</h2>
+            </div>
+            <span className="status-pill waiting">{scheduleForm.dateKey}</span>
+          </div>
+
+          <form className="admin-form" onSubmit={submitSchedule}>
+            <div className="form-row">
+              <label>
+                Дата
+                <input
+                  className="text-input"
+                  onChange={(event) => setScheduleForm((current) => ({ ...current, dateKey: event.target.value }))}
+                  required
+                  type="date"
+                  value={scheduleForm.dateKey}
+                />
+              </label>
+              <label>
+                Квиз
+                <select
+                  className="text-input"
+                  onChange={(event) => setScheduleForm((current) => ({ ...current, quizId: event.target.value }))}
+                  value={scheduleForm.quizId}
+                >
+                  <option value="">Автовыбор</option>
+                  {summary.state.quizzes.map((quiz) => (
+                    <option key={quiz.id} value={quiz.id}>
+                      {quiz.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button className="primary-button compact" type="submit">
+              Сохранить расписание
+            </button>
+          </form>
+
+          <div className="history-list">
+            {summary.quizSchedule.length === 0 ? (
+              <div className="empty-state">Запланированных дат пока нет.</div>
+            ) : (
+              summary.quizSchedule.map((item) => (
+                <button className="schedule-row" key={item.dateKey} onClick={() => editSchedule(item)} type="button">
+                  <span>
+                    <strong>{displayDate(item.dateKey, { weekday: "short", day: "numeric", month: "long" })}</strong>
+                    <span>{item.quizTitle}</span>
+                  </span>
+                  <span className={`status-pill ${item.dateKey === todayKey ? "done" : "waiting"}`}>
+                    {item.dateKey === todayKey ? "Сегодня" : item.quizId}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         </section>
 
