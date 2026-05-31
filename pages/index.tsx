@@ -71,6 +71,11 @@ type ToastState = {
   visible: boolean;
 };
 
+type UpgradeFlashState = {
+  enhancementId: EnhancementId;
+  tick: number;
+};
+
 type BootstrapResponse = {
   authenticatedEmployeeId?: string | null;
   source: "local" | "supabase";
@@ -93,6 +98,7 @@ export default function HomePage() {
   const [profile, setProfile] = useState<GameProfile | null>(null);
   const [activeSection, setActiveSection] = useState<GameSectionId>("hero");
   const [toast, setToast] = useState<ToastState>({ message: "", visible: false });
+  const [upgradeFlash, setUpgradeFlash] = useState<UpgradeFlashState | null>(null);
 
   const todayKey = useMemo(() => getTodayKey(), []);
   const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
@@ -168,6 +174,15 @@ export default function HomePage() {
     const timer = window.setTimeout(() => setToast((current) => ({ ...current, visible: false })), 2600);
     return () => window.clearTimeout(timer);
   }, [toast.visible]);
+
+  useEffect(() => {
+    if (!upgradeFlash) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setUpgradeFlash(null), 860);
+    return () => window.clearTimeout(timer);
+  }, [upgradeFlash]);
 
   async function loadBootstrap(selectedEmployeeId = appState.selectedEmployeeId, token = sessionToken) {
     setLoading(true);
@@ -284,9 +299,13 @@ export default function HomePage() {
 
     const previousStacks = profile.enhancements[enhancement.id];
     const nextProfile = forgeEnhancement(profile, enhancement);
+    const upgraded = nextProfile.enhancements[enhancement.id] > previousStacks;
+    if (upgraded) {
+      setUpgradeFlash({ enhancementId: enhancement.id, tick: Date.now() });
+    }
     updateProfile(
       nextProfile,
-      nextProfile.enhancements[enhancement.id] > previousStacks
+      upgraded
         ? `Усиление создано: ${enhancement.name}.`
         : "Не хватает ресурсов.",
     );
@@ -502,7 +521,10 @@ export default function HomePage() {
                 {freeProfessionChangeAvailable ? "1 смена доступна" : "Смена за ресурсы"}
               </span>
             </div>
-            <section className="hero-loadout" aria-label="Текущий герой">
+            <section
+              className={`hero-loadout${upgradeFlash?.enhancementId === activeWeaponEnhancement ? " is-upgrading" : ""}`}
+              aria-label="Текущий герой"
+            >
               <div className="hero-loadout-scene">
                 {hasCharacterSprite(profile.professionId) ? (
                   <CharacterSpritePreview
@@ -669,6 +691,7 @@ export default function HomePage() {
               {enhancements.map((enhancement) => (
                 <EnhancementCard
                   enhancement={enhancement}
+                  isUpgrading={upgradeFlash?.enhancementId === enhancement.id}
                   key={enhancement.id}
                   onForge={() => runEnhancement(enhancement)}
                   profile={profile}
@@ -836,10 +859,12 @@ function formatResourceList(resources: Partial<Record<keyof typeof resourceLabel
 
 function EnhancementCard({
   enhancement,
+  isUpgrading,
   onForge,
   profile,
 }: {
   enhancement: Enhancement;
+  isUpgrading?: boolean;
   onForge: () => void;
   profile: GameProfile;
 }) {
@@ -848,7 +873,7 @@ function EnhancementCard({
   const canForge = canForgeEnhancement(profile, enhancement);
 
   return (
-    <article className="enhancement-card">
+    <article className={`enhancement-card${isUpgrading ? " is-upgrading" : ""}`}>
       <div className="enhancement-preview-row">
         <WeaponPreview3D enhancementId={enhancement.id} level={stacks} />
         <div>

@@ -999,6 +999,7 @@ button {
 }
 
 .hero-loadout {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(170px, 0.42fr) minmax(0, 1fr);
   gap: 18px;
@@ -1012,6 +1013,23 @@ button {
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 48px),
     linear-gradient(135deg, #17352f, #2f6f9f 56%, #0f766e);
   color: #ffffff;
+}
+
+.hero-loadout::before {
+  position: absolute;
+  inset: -18% -16%;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 26% 54%, rgba(255, 242, 212, 0.24), transparent 24%),
+    linear-gradient(115deg, transparent 22%, rgba(255, 255, 255, 0.34), transparent 46%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-34%) rotate(-7deg);
+}
+
+.hero-loadout.is-upgrading::before {
+  animation: upgradeLoadoutSweep 780ms ease-out both;
 }
 
 .hero-loadout .section-kicker {
@@ -1067,6 +1085,11 @@ button {
     saturate(1.08)
     contrast(var(--sprite-contrast));
   transform: translateY(calc(var(--sprite-offset-y) - 3px)) scale(var(--sprite-scale-x), var(--sprite-scale-y));
+}
+
+.hero-loadout.is-upgrading .hero-loadout-scene,
+.hero-loadout.is-upgrading .hero-weapon-row {
+  animation: upgradeHeroLift 780ms cubic-bezier(0.18, 0.92, 0.2, 1) both;
 }
 
 .hero-loadout .profession-avatar-3d {
@@ -1167,6 +1190,10 @@ button {
   background: #fff2d4;
   color: #17352f;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.hero-loadout.is-upgrading .weapon-stage-dot.is-current {
+  animation: upgradeStageDot 780ms ease-out both;
 }
 
 .hero-loadout-stats {
@@ -1539,6 +1566,7 @@ button {
 
 .mission-card,
 .enhancement-card {
+  position: relative;
   display: grid;
   gap: 12px;
   align-content: space-between;
@@ -1547,6 +1575,39 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
+  overflow: hidden;
+}
+
+.enhancement-card::before {
+  position: absolute;
+  inset: -32% -18%;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 18% 46%, rgba(142, 199, 238, 0.24), transparent 24%),
+    linear-gradient(110deg, transparent 24%, rgba(255, 242, 212, 0.52), transparent 48%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-42%) rotate(-8deg);
+}
+
+.enhancement-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.enhancement-card.is-upgrading {
+  border-color: rgba(255, 196, 87, 0.74);
+  animation: upgradeCardPulse 780ms ease-out both;
+}
+
+.enhancement-card.is-upgrading::before {
+  animation: upgradeCardSweep 780ms ease-out both;
+}
+
+.enhancement-card.is-upgrading .enhancement-preview-row,
+.enhancement-card.is-upgrading .weapon-preview-3d {
+  animation: upgradeHeroLift 780ms cubic-bezier(0.18, 0.92, 0.2, 1) both;
 }
 
 .mission-card.is-complete {
@@ -1846,6 +1907,79 @@ button {
 .toast.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+@keyframes upgradeLoadoutSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-34%) rotate(-7deg);
+  }
+
+  28% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(34%) rotate(-7deg);
+  }
+}
+
+@keyframes upgradeCardSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-42%) rotate(-8deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(42%) rotate(-8deg);
+  }
+}
+
+@keyframes upgradeHeroLift {
+  0%,
+  100% {
+    filter: inherit;
+    transform: translateY(0) scale(1);
+  }
+
+  44% {
+    filter: drop-shadow(0 0 20px rgba(255, 242, 212, 0.72));
+    transform: translateY(-5px) scale(1.035);
+  }
+}
+
+@keyframes upgradeStageDot {
+  0%,
+  100% {
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    transform: scale(1);
+  }
+
+  46% {
+    box-shadow:
+      0 0 0 6px rgba(255, 242, 212, 0.24),
+      0 0 22px rgba(255, 242, 212, 0.62);
+    transform: scale(1.08);
+  }
+}
+
+@keyframes upgradeCardPulse {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+
+  44% {
+    box-shadow:
+      0 0 0 2px rgba(255, 242, 212, 0.5),
+      0 18px 34px rgba(23, 53, 47, 0.14);
+  }
 }
 
 @media (max-width: 1100px) {
