@@ -322,7 +322,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
         )}
         <div
           className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving, profile.professionId)}
-          style={playerArenaStyle(combatState)}
+          style={playerArenaStyle(combatState, profile.professionId)}
         >
           {spriteSheet ? (
             <span
@@ -684,9 +684,19 @@ function rankBadgeClass(rank: string) {
   return `${styles.rankBadge} ${rankClass[rank] || styles.rankC}`;
 }
 
-function playerArenaStyle(state: CombatState): CSSProperties {
+const playerAnimationProfiles: Record<GameProfile["professionId"], { attackRotateScale: number }> = {
+  artisan: { attackRotateScale: 0.42 },
+  enchanter: { attackRotateScale: 0.34 },
+  miner: { attackRotateScale: 0.38 },
+  pathfinder: { attackRotateScale: 0.48 },
+  tactician: { attackRotateScale: 0.62 },
+  warden: { attackRotateScale: 0.72 },
+};
+
+function playerArenaStyle(state: CombatState, professionId: GameProfile["professionId"]): CSSProperties {
   const facing = state.player.facing;
   const faceSign = facing.x < -0.08 ? -1 : 1;
+  const animationProfile = playerAnimationProfiles[professionId];
   const attackPullX = -facing.x * 10;
   const attackPullY = -facing.y * 8;
   const attackStrikeX = facing.x * 18;
@@ -703,8 +713,8 @@ function playerArenaStyle(state: CombatState): CSSProperties {
     "--player-attack-pull-y": `${attackPullY}px`,
     "--player-attack-strike-x": `${attackStrikeX}px`,
     "--player-attack-strike-y": `${attackStrikeY}px`,
-    "--player-attack-strike-rotate": `${clampNumber(12 * turnSign + facing.y * 5, -18, 18)}deg`,
-    "--player-attack-windup-rotate": `${clampNumber(-9 * turnSign - facing.y * 4, -16, 16)}deg`,
+    "--player-attack-strike-rotate": `${clampNumber((12 * turnSign + facing.y * 5) * animationProfile.attackRotateScale, -18, 18)}deg`,
+    "--player-attack-windup-rotate": `${clampNumber((-9 * turnSign - facing.y * 4) * animationProfile.attackRotateScale, -16, 16)}deg`,
     "--player-dodge-x": `${dodgeX}px`,
     "--player-dodge-y": `${dodgeY}px`,
     "--player-face-sign": faceSign,

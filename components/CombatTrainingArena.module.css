@@ -698,15 +698,32 @@
   --player-attack-strike-y: 0px;
   --player-attack-strike-rotate: 12deg;
   --player-attack-windup-rotate: -9deg;
+  --player-attack-duration: 190ms;
+  --player-attack-ready-lift: -14px;
+  --player-attack-ready-skew: -7deg;
+  --player-attack-strike-scale-y: 1.04;
+  --player-attack-strike-skew: 6deg;
+  --player-attack-windup-lift: -6px;
+  --player-attack-windup-skew: -4deg;
   --player-dodge-x: 22px;
   --player-dodge-y: 0px;
+  --player-dodge-duration: 260ms;
+  --player-dodge-opacity: 0.72;
   --player-face-sign: 1;
+  --player-idle-bob: -2px;
+  --player-idle-duration: 1500ms;
   --player-idle-tilt: 0deg;
+  --player-move-drop: 2px;
+  --player-move-hop: -4px;
   --player-move-tilt: 2deg;
   --player-step-back-x: -4px;
   --player-step-back-y: 0px;
   --player-step-x: 4px;
   --player-step-y: 0px;
+  --player-walk-duration: 430ms;
+  --player-walk-recover-lift: -3px;
+  --player-smear-ready-opacity: 0.34;
+  --player-smear-strike-opacity: 0.22;
   --player-sprite-width: 78px;
   --player-sprite-height: 132px;
   --player-sprite-bottom: 0px;
@@ -729,6 +746,19 @@
   --player-sprite-shadow-width: 54px;
   --player-sprite-contrast: 1.08;
   --player-sprite-saturation: 1.08;
+  --player-attack-duration: 170ms;
+  --player-attack-ready-lift: -18px;
+  --player-attack-ready-skew: -2deg;
+  --player-attack-strike-scale-y: 1.05;
+  --player-attack-strike-skew: 2deg;
+  --player-attack-windup-lift: -8px;
+  --player-attack-windup-skew: -2deg;
+  --player-dodge-duration: 230ms;
+  --player-idle-bob: -3px;
+  --player-idle-duration: 1320ms;
+  --player-move-hop: -6px;
+  --player-walk-duration: 380ms;
+  --player-walk-recover-lift: -5px;
 }
 
 .player.hasSprite.professionMiner {
@@ -738,6 +768,20 @@
   --player-sprite-shadow-width: 72px;
   --player-sprite-contrast: 1.04;
   --player-sprite-saturation: 1.02;
+  --player-attack-duration: 235ms;
+  --player-attack-ready-lift: -8px;
+  --player-attack-ready-skew: -3deg;
+  --player-attack-strike-scale-y: 1.02;
+  --player-attack-strike-skew: 4deg;
+  --player-attack-windup-lift: -3px;
+  --player-attack-windup-skew: -2deg;
+  --player-dodge-duration: 300ms;
+  --player-idle-bob: -1px;
+  --player-idle-duration: 1720ms;
+  --player-move-drop: 3px;
+  --player-move-hop: -2px;
+  --player-walk-duration: 520ms;
+  --player-walk-recover-lift: -1px;
 }
 
 .player.hasSprite.professionWarden {
@@ -746,6 +790,14 @@
   --player-sprite-shadow-width: 64px;
   --player-sprite-contrast: 1.1;
   --player-sprite-saturation: 1.08;
+  --player-attack-duration: 185ms;
+  --player-attack-ready-lift: -15px;
+  --player-attack-strike-scale-y: 1.06;
+  --player-attack-strike-skew: 7deg;
+  --player-attack-windup-lift: -7px;
+  --player-idle-duration: 1440ms;
+  --player-move-hop: -5px;
+  --player-walk-duration: 410ms;
 }
 
 .player.hasSprite.professionArtisan {
@@ -755,6 +807,17 @@
   --player-sprite-shadow-width: 74px;
   --player-sprite-contrast: 1.06;
   --player-sprite-saturation: 1.04;
+  --player-attack-duration: 220ms;
+  --player-attack-ready-lift: -10px;
+  --player-attack-ready-skew: -4deg;
+  --player-attack-strike-scale-y: 1.03;
+  --player-attack-windup-lift: -4px;
+  --player-dodge-duration: 285ms;
+  --player-idle-bob: -1px;
+  --player-idle-duration: 1650ms;
+  --player-move-drop: 3px;
+  --player-move-hop: -3px;
+  --player-walk-duration: 500ms;
 }
 
 .player.hasSprite.professionEnchanter {
@@ -764,6 +827,20 @@
   --player-sprite-shadow-width: 52px;
   --player-sprite-contrast: 1.09;
   --player-sprite-saturation: 1.1;
+  --player-attack-duration: 240ms;
+  --player-attack-ready-lift: -22px;
+  --player-attack-ready-skew: -2deg;
+  --player-attack-strike-scale-y: 1.07;
+  --player-attack-strike-skew: 2deg;
+  --player-attack-windup-lift: -12px;
+  --player-attack-windup-skew: -2deg;
+  --player-dodge-opacity: 0.62;
+  --player-idle-bob: -5px;
+  --player-idle-duration: 1850ms;
+  --player-move-hop: -4px;
+  --player-smear-ready-opacity: 0.22;
+  --player-smear-strike-opacity: 0.18;
+  --player-walk-duration: 540ms;
 }
 
 .player.hasSprite.professionTactician {
@@ -773,6 +850,15 @@
   --player-sprite-shadow-width: 66px;
   --player-sprite-contrast: 1.06;
   --player-sprite-saturation: 1.07;
+  --player-attack-duration: 205ms;
+  --player-attack-ready-lift: -13px;
+  --player-attack-ready-skew: -5deg;
+  --player-attack-strike-scale-y: 1.05;
+  --player-attack-strike-skew: 5deg;
+  --player-attack-windup-lift: -5px;
+  --player-idle-duration: 1580ms;
+  --player-move-hop: -4px;
+  --player-walk-duration: 455ms;
 }
 
 .player span {
@@ -818,19 +904,19 @@
 }
 
 .player.hasSprite:not(.isMoving):not(.isAttacking):not(.isDodging) .playerSprite {
-  animation: playerSpriteIdle 1500ms ease-in-out infinite;
+  animation: playerSpriteIdle var(--player-idle-duration) ease-in-out infinite;
 }
 
 .player.hasSprite.isMoving:not(.isAttacking):not(.isDodging) .playerSprite {
-  animation: playerSpriteWalk 430ms ease-in-out infinite;
+  animation: playerSpriteWalk var(--player-walk-duration) ease-in-out infinite;
 }
 
 .player.hasSprite.isDodging .playerSprite {
-  animation: playerSpriteDodge 260ms cubic-bezier(0.17, 0.9, 0.22, 1) both;
+  animation: playerSpriteDodge var(--player-dodge-duration) cubic-bezier(0.17, 0.9, 0.22, 1) both;
 }
 
 .player.hasSprite.isAttacking .playerSprite {
-  animation: playerSpriteAttack 190ms cubic-bezier(0.2, 0.92, 0.24, 1) both;
+  animation: playerSpriteAttack var(--player-attack-duration) cubic-bezier(0.2, 0.92, 0.24, 1) both;
   filter:
     drop-shadow(0 0 10px rgba(255, 242, 212, 0.48))
     drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3))
@@ -839,7 +925,7 @@
 }
 
 .player.hasSprite.isPrecise.isAttacking .playerSprite {
-  animation-duration: 220ms;
+  animation-duration: calc(var(--player-attack-duration) + 30ms);
   filter:
     drop-shadow(0 0 14px rgba(255, 242, 212, 0.72))
     drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3))
@@ -880,7 +966,7 @@
 }
 
 .player.hasSprite.isAttacking .playerSprite::after {
-  animation: playerSpriteSmear 190ms cubic-bezier(0.2, 0.92, 0.24, 1) both;
+  animation: playerSpriteSmear var(--player-attack-duration) cubic-bezier(0.2, 0.92, 0.24, 1) both;
 }
 
 .player:not(.hasSprite).isMoving span {
@@ -1212,7 +1298,7 @@
   }
 
   50% {
-    transform: translateX(-50%) translateY(-2px) scaleX(var(--player-face-sign)) rotate(var(--player-idle-tilt));
+    transform: translateX(-50%) translateY(var(--player-idle-bob)) scaleX(var(--player-face-sign)) rotate(var(--player-idle-tilt));
   }
 }
 
@@ -1223,15 +1309,16 @@
   }
 
   25% {
-    transform: translateX(-50%) translate(var(--player-step-x), -4px) scaleX(var(--player-face-sign)) rotate(var(--player-move-tilt));
+    transform: translateX(-50%) translate(var(--player-step-x), var(--player-move-hop)) scaleX(var(--player-face-sign)) rotate(var(--player-move-tilt));
   }
 
   50% {
-    transform: translateX(-50%) translate(0, 2px) scaleX(var(--player-face-sign)) rotate(0deg);
+    transform: translateX(-50%) translate(0, var(--player-move-drop)) scaleX(var(--player-face-sign)) rotate(0deg);
   }
 
   75% {
-    transform: translateX(-50%) translate(var(--player-step-back-x), -3px) scaleX(var(--player-face-sign)) rotate(var(--player-move-tilt));
+    transform: translateX(-50%) translate(var(--player-step-back-x), var(--player-walk-recover-lift)) scaleX(var(--player-face-sign))
+      rotate(var(--player-move-tilt));
   }
 }
 
@@ -1241,18 +1328,19 @@
   }
 
   24% {
-    transform: translateX(-50%) translate(var(--player-attack-pull-x), calc(var(--player-attack-pull-y) - 6px)) scaleX(var(--player-face-sign))
-      rotate(var(--player-attack-windup-rotate)) skew(-4deg, 0deg);
+    transform: translateX(-50%) translate(var(--player-attack-pull-x), calc(var(--player-attack-pull-y) + var(--player-attack-windup-lift)))
+      scaleX(var(--player-face-sign)) rotate(var(--player-attack-windup-rotate)) skew(var(--player-attack-windup-skew), 0deg);
   }
 
   46% {
-    transform: translateX(-50%) translate(calc(var(--player-attack-pull-x) * 0.65), calc(var(--player-attack-pull-y) - 14px))
-      scaleX(var(--player-face-sign)) scaleY(0.94) rotate(calc(var(--player-attack-windup-rotate) * 1.4)) skew(-7deg, 0deg);
+    transform: translateX(-50%) translate(calc(var(--player-attack-pull-x) * 0.65), calc(var(--player-attack-pull-y) + var(--player-attack-ready-lift)))
+      scaleX(var(--player-face-sign)) scaleY(0.94) rotate(calc(var(--player-attack-windup-rotate) * 1.4))
+      skew(var(--player-attack-ready-skew), 0deg);
   }
 
   68% {
     transform: translateX(-50%) translate(var(--player-attack-strike-x), var(--player-attack-strike-y)) scaleX(var(--player-face-sign))
-      scaleY(1.04) rotate(var(--player-attack-strike-rotate)) skew(6deg, 0deg);
+      scaleY(var(--player-attack-strike-scale-y)) rotate(var(--player-attack-strike-rotate)) skew(var(--player-attack-strike-skew), 0deg);
   }
 
   100% {
@@ -1267,7 +1355,7 @@
   }
 
   48% {
-    opacity: 0.72;
+    opacity: var(--player-dodge-opacity);
     transform: translateX(-50%) translate(var(--player-dodge-x), var(--player-dodge-y)) scaleX(var(--player-face-sign))
       rotate(var(--player-move-tilt));
   }
@@ -1285,12 +1373,13 @@
   }
 
   38% {
-    opacity: 0.34;
-    transform: translate(calc(var(--player-attack-pull-x) * -0.34), calc(var(--player-attack-pull-y) * -0.2 - 8px)) scaleX(0.98);
+    opacity: var(--player-smear-ready-opacity);
+    transform: translate(calc(var(--player-attack-pull-x) * -0.34), calc(var(--player-attack-pull-y) * -0.2 + var(--player-attack-windup-lift)))
+      scaleX(0.98);
   }
 
   70% {
-    opacity: 0.22;
+    opacity: var(--player-smear-strike-opacity);
     transform: translate(calc(var(--player-attack-strike-x) * -0.45), calc(var(--player-attack-strike-y) * -0.35)) scaleX(1.06);
   }
 
