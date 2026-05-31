@@ -716,6 +716,10 @@
 }
 
 .player {
+  --player-combo-opacity: 0;
+  --player-combo-size: 58px;
+  --player-combo-speed: 1080ms;
+  --player-sprite-bottom: 0px;
   width: 56px;
   height: 56px;
   border: 2px solid rgba(255, 255, 255, 0.88);
@@ -808,6 +812,33 @@
   transform: translateX(-50%) rotate(-3deg);
   transform-origin: 50% 50%;
   animation: playerStageAuraPulse var(--player-stage-aura-speed) ease-in-out infinite;
+}
+
+.playerComboAura {
+  position: absolute;
+  bottom: calc(var(--player-sprite-bottom) + 6px);
+  left: 50%;
+  z-index: 0;
+  display: block;
+  width: var(--player-combo-size);
+  height: calc(var(--player-combo-size) * 0.3);
+  border: 1px solid rgba(255, 242, 212, 0.7);
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 242, 212, 0.3), transparent 42%),
+    conic-gradient(from 22deg, transparent, rgba(255, 196, 87, 0.52), transparent 38%, rgba(217, 242, 233, 0.34), transparent 72%);
+  box-shadow:
+    0 0 18px rgba(255, 242, 212, 0.28),
+    inset 0 0 14px rgba(255, 255, 255, 0.1);
+  opacity: var(--player-combo-opacity);
+  pointer-events: none;
+  transform: translateX(-50%) rotate(5deg);
+  transform-origin: 50% 50%;
+  animation: playerComboAuraPulse var(--player-combo-speed) ease-in-out infinite;
+}
+
+.player:not(.hasSprite) .playerComboAura {
+  bottom: -8px;
 }
 
 .player.hasSprite.professionPathfinder {
@@ -1123,10 +1154,17 @@
 .isPrecise::after {
   position: absolute;
   inset: -15px;
+  z-index: 1;
   border: 1px solid rgba(255, 242, 212, 0.86);
   border-radius: 999px;
   content: "";
   pointer-events: none;
+}
+
+.hasCombo {
+  filter:
+    drop-shadow(0 0 10px rgba(255, 242, 212, 0.28))
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.18));
 }
 
 .isAttacking {
@@ -1705,6 +1743,17 @@
   54% {
     filter: blur(0.8px);
     transform: translateX(-50%) rotate(-3deg) scale(1.22);
+  }
+}
+
+@keyframes playerComboAuraPulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(0.94, 0.92) rotate(5deg);
+  }
+
+  50% {
+    transform: translateX(-50%) scale(1.08, 1.02) rotate(-5deg);
   }
 }
 

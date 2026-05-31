@@ -324,6 +324,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
           className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving, profile.professionId)}
           style={playerArenaStyle(combatState, profile.professionId, spriteWeaponLevel)}
         >
+          {combatState.combo > 0 && <b className={styles.playerComboAura} aria-hidden="true" />}
           {spriteSheet && <b className={styles.playerStageAura} aria-hidden="true" />}
           {spriteSheet ? (
             <span
@@ -803,6 +804,7 @@ function playerArenaStyle(state: CombatState, professionId: GameProfile["profess
   const stepX = facing.x * 4;
   const stepY = facing.y * 3;
   const turnSign = faceSign < 0 ? -1 : 1;
+  const combo = clampNumber(state.combo, 0, 6);
 
   return {
     ...positionStyle(state.player.position),
@@ -817,6 +819,9 @@ function playerArenaStyle(state: CombatState, professionId: GameProfile["profess
     "--player-dodge-x": `${dodgeX}px`,
     "--player-dodge-y": `${dodgeY}px`,
     "--player-face-sign": faceSign,
+    "--player-combo-opacity": combo > 0 ? Math.min(0.64, 0.22 + combo * 0.07) : 0,
+    "--player-combo-size": `${58 + combo * 8}px`,
+    "--player-combo-speed": `${Math.max(620, 1080 - combo * 62)}ms`,
     "--player-idle-tilt": `${clampNumber(facing.y * 2.4, -3, 3)}deg`,
     "--player-move-tilt": `${clampNumber(facing.x * 2.5 + facing.y * 4, -6, 6)}deg`,
     "--player-step-back-x": `${-stepX}px`,
@@ -848,12 +853,13 @@ function playerClass(state: CombatState, hasSprite: boolean, isMoving: boolean, 
   const isPrecise = state.timeMs < state.player.precisionUntil;
   const isAttacking = state.timeMs < state.player.attackUntil;
   const isCasting = state.timeMs < state.player.abilityUntil;
+  const hasCombo = state.combo > 0;
   const professionClass = hasSprite ? playerProfessionClass[professionId] || "" : "";
   return `${styles.player}${hasSprite ? ` ${styles.hasSprite}` : ""}${professionClass ? ` ${professionClass}` : ""}${isProtected ? ` ${styles.isProtected}` : ""}${
     isDodging ? ` ${styles.isDodging}` : ""
   }${isPrecise ? ` ${styles.isPrecise}` : ""}${isAttacking ? ` ${styles.isAttacking}` : ""}${isCasting ? ` ${styles.isCasting}` : ""}${
-    isMoving ? ` ${styles.isMoving}` : ""
-  }`;
+    hasCombo ? ` ${styles.hasCombo}` : ""
+  }${isMoving ? ` ${styles.isMoving}` : ""}`;
 }
 
 function enemyClass(enemy: CombatEnemy, isDown: boolean, isHit: boolean, isStunned: boolean, isCharging: boolean) {
