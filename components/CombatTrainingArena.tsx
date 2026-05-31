@@ -324,6 +324,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
           className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving, profile.professionId)}
           style={playerArenaStyle(combatState, profile.professionId, spriteWeaponLevel)}
         >
+          {isPlayerMoving && combatState.status === "fighting" && <b className={styles.playerMoveTrail} aria-hidden="true" />}
           {combatState.combo > 0 && <b className={styles.playerComboAura} aria-hidden="true" />}
           {spriteSheet && <b className={styles.playerStageAura} aria-hidden="true" />}
           {spriteSheet ? (
@@ -823,6 +824,8 @@ function playerArenaStyle(state: CombatState, professionId: GameProfile["profess
     "--player-combo-size": `${58 + combo * 8}px`,
     "--player-combo-speed": `${Math.max(620, 1080 - combo * 62)}ms`,
     "--player-idle-tilt": `${clampNumber(facing.y * 2.4, -3, 3)}deg`,
+    "--player-move-trail-x": `${-facing.x * 10}px`,
+    "--player-move-trail-y": `${-facing.y * 4}px`,
     "--player-move-tilt": `${clampNumber(facing.x * 2.5 + facing.y * 4, -6, 6)}deg`,
     "--player-step-back-x": `${-stepX}px`,
     "--player-step-back-y": `${-stepY}px`,
