@@ -30,6 +30,12 @@ export type EnhancementOutcome = {
   powerGain: number;
 };
 
+export type DungeonOutcome = {
+  xp: number;
+  resources: Partial<ResourceBag>;
+  battleContribution: number;
+};
+
 export type BattleReadinessTierId = "patrol" | "hold" | "counter" | "breakthrough";
 
 export type BattleReadinessTier = {
@@ -585,6 +591,14 @@ export function canEnterDungeon(profile: GameProfile, dungeon: Dungeon) {
   );
 }
 
+export function getDungeonOutcome(dungeon: Dungeon): DungeonOutcome {
+  return {
+    xp: dungeon.xp,
+    resources: dungeon.rewards,
+    battleContribution: dungeon.teamContribution,
+  };
+}
+
 export function getMissionOutcome(profile: GameProfile, mission: DailyMission): MissionOutcome {
   const directiveRewards = getDirectiveMissionRewards(profile, mission);
   const resources = compactResources({
@@ -643,12 +657,13 @@ export function enterDungeon(profile: GameProfile, dungeon: Dungeon) {
     return profile;
   }
 
+  const outcome = getDungeonOutcome(dungeon);
   const next = cloneProfile(profile);
   next.energy -= 1;
   next.completedDungeons.push(dungeon.id);
-  next.xp += dungeon.xp;
-  next.battleContribution += dungeon.teamContribution;
-  addRewards(next.resources, dungeon.rewards);
+  next.xp += outcome.xp;
+  next.battleContribution += outcome.battleContribution;
+  addRewards(next.resources, outcome.resources);
 
   applyLevelUps(next);
   next.log.unshift(`Подземелье пройдено: ${dungeon.name}.`);

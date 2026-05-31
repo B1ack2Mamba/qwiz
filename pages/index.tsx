@@ -41,6 +41,7 @@ import {
   getBattleContributionCost,
   getBattleContributionGain,
   getBattleReadinessPlan,
+  getDungeonOutcome,
   getDungeonPower,
   getEnhancement,
   getEnhancementCost,
@@ -973,6 +974,7 @@ function DungeonRow({
 }) {
   const completed = profile.completedDungeons.includes(dungeon.id);
   const currentPower = getDungeonPower(profile, dungeon);
+  const outcome = getDungeonOutcome(dungeon);
   const powerMet = currentPower >= dungeon.requiredPower;
   const canEnter = canEnterDungeon(profile, dungeon);
   const actionLabel = completed ? "Зачищено" : profile.energy <= 0 ? "Нет энергии" : canEnter ? "Пройти" : "Закрыто";
@@ -990,7 +992,7 @@ function DungeonRow({
         <span className={powerMet ? "is-met" : ""}>
           {currentPower}/{dungeon.requiredPower}
         </span>
-        <RewardLine rewards={dungeon.rewards} />
+        <RewardLine extras={[`+${outcome.xp} XP`, `+${outcome.battleContribution} готовность`]} rewards={outcome.resources} />
       </div>
       <button className="secondary-button compact" disabled={!canEnter} onClick={onEnter} type="button">
         {actionLabel}
