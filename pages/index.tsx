@@ -25,6 +25,7 @@ import {
   GameProfile,
   ProfessionId,
   TeamDirectiveId,
+  canContributeToBattle,
   canEnterDungeon,
   canForgeEnhancement,
   changeProfession,
@@ -37,6 +38,8 @@ import {
   enterDungeon,
   enhancements,
   forgeEnhancement,
+  getBattleContributionCost,
+  getBattleContributionGain,
   getDungeonPower,
   getEnhancement,
   getEnhancementCost,
@@ -120,6 +123,9 @@ export default function HomePage() {
   const monthlyReadiness = profile
     ? Math.min(100, Math.round(((profile.battleContribution + rankedEmployees.length * 8) / 140) * 100))
     : 0;
+  const battleContributionCost = profile ? getBattleContributionCost(profile) : {};
+  const battleContributionGain = profile ? getBattleContributionGain(profile) : 0;
+  const battleContributionReady = profile ? canContributeToBattle(profile) : false;
   useEffect(() => {
     const selectedEmployeeId = window.localStorage.getItem(SELECTED_EMPLOYEE_KEY) || undefined;
     const token = window.localStorage.getItem(SESSION_TOKEN_KEY) || "";
@@ -331,8 +337,13 @@ export default function HomePage() {
       return;
     }
 
+    if (!canContributeToBattle(profile)) {
+      updateProfile(profile, `Нужны ресурсы для вклада: ${formatResourceList(getBattleContributionCost(profile))}.`);
+      return;
+    }
+
     const nextProfile = contributeToBattle(profile);
-    updateProfile(nextProfile, nextProfile === profile ? "Нужны провиант и эфир." : "Вклад в битву внесен.");
+    updateProfile(nextProfile, "Вклад в битву внесен.");
   }
 
   function runTeamDirective(directiveId: TeamDirectiveId) {
@@ -723,10 +734,12 @@ export default function HomePage() {
               <div className="battle-readiness" style={{ width: `${monthlyReadiness}%` }} />
             </div>
             <div className="battle-actions">
-              <button className="primary-button" onClick={runBattleContribution} type="button">
+              <button className="primary-button" disabled={!battleContributionReady} onClick={runBattleContribution} type="button">
                 Внести вклад
               </button>
-              <span>Требуется: 1 провиант и 1 эфир</span>
+              <span>
+                +{battleContributionGain} готовности · Требуется: {formatResourceList(battleContributionCost)}
+              </span>
             </div>
             <CombatTrainingArena
               heroPower={heroPower}

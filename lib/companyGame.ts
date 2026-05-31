@@ -136,7 +136,7 @@ export const teamDirectives: TeamDirective[] = [
     name: "Рынок",
     focus: "Деньги, ресурсы, крафт",
     description: "Отряд работает через снабжение: больше провианта и дешевле часть крафта.",
-    bonus: "+провиант за задания, -1 провиант в цене усилений",
+    bonus: "+провиант за задания, -1 провиант в цене усилений и вклада",
   },
 ];
 
@@ -546,15 +546,33 @@ export function enterDungeon(profile: GameProfile, dungeon: Dungeon) {
   return touch(next);
 }
 
+export function getBattleContributionCost(profile: GameProfile): Partial<ResourceBag> {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+
+  return compactResources({
+    supplies: directiveId === "market" ? 0 : 1,
+    essence: 1,
+  });
+}
+
+export function getBattleContributionGain(profile: GameProfile) {
+  return (profile.professionId === "tactician" ? 14 : 9) + (getTeamDirective(profile.teamDirectiveId).id === "command" ? 3 : 0);
+}
+
+export function canContributeToBattle(profile: GameProfile) {
+  return hasResources(profile.resources, getBattleContributionCost(profile));
+}
+
 export function contributeToBattle(profile: GameProfile) {
-  if (profile.resources.supplies < 1 || profile.resources.essence < 1) {
+  const cost = getBattleContributionCost(profile);
+
+  if (!hasResources(profile.resources, cost)) {
     return profile;
   }
 
   const next = cloneProfile(profile);
-  next.resources.supplies -= 1;
-  next.resources.essence -= 1;
-  next.battleContribution += (next.professionId === "tactician" ? 14 : 9) + (getTeamDirective(next.teamDirectiveId).id === "command" ? 3 : 0);
+  removeResources(next.resources, cost);
+  next.battleContribution += getBattleContributionGain(next);
   next.log.unshift("Вклад внесен в месячную битву.");
   return touch(next);
 }
