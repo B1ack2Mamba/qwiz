@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireAdmin } from "../../lib/adminAuth";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
 
 type AwardRequest = {
@@ -16,6 +17,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "method_not_allowed" });
+    return;
+  }
+
+  if (!requireAdmin(req, res)) {
     return;
   }
 

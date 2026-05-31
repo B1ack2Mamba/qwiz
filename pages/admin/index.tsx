@@ -1,5 +1,15 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AppState, Employee, Prize, Quiz, createInitialState, formatNumber } from "../../lib/qwizData";
+import {
+  AppState,
+  Employee,
+  Prize,
+  Quiz,
+  createInitialState,
+  displayDate,
+  formatNumber,
+  getTodayKey,
+  getWeekStartKey,
+} from "../../lib/qwizData";
 import type { RecentAttempt } from "../../lib/qwizSupabase";
 
 type AdminSummary = {
@@ -39,6 +49,18 @@ type QuizForm = {
   }>;
 };
 
+type CloseWeekResponse = {
+  duplicate?: boolean;
+  resetWeeklyPoints?: boolean;
+  winners?: Array<{
+    employeeId: string;
+    name: string;
+    place: number;
+    prize: string;
+    weeklyPoints: number;
+  }>;
+};
+
 const emptyQuestion = {
   text: "",
   options: ["", "", "", ""],
@@ -63,6 +85,7 @@ export default function AdminPage() {
   const [adminPin, setAdminPin] = useState(() =>
     typeof window === "undefined" ? "" : window.localStorage.getItem("qwiz-admin-pin") || "",
   );
+  const [resetWeeklyPoints, setResetWeeklyPoints] = useState(true);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>({ id: "", name: "", role: "", avatar: "" });
   const [prizeForm, setPrizeForm] = useState<PrizeForm>({ place: 1, title: "", detail: "" });
   const [quizForm, setQuizForm] = useState<QuizForm>({
@@ -72,6 +95,8 @@ export default function AdminPage() {
     questions: [{ ...emptyQuestion }, { ...emptyQuestion }, { ...emptyQuestion }],
   });
 
+  const todayKey = useMemo(() => getTodayKey(), []);
+  const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
   const rankedEmployees = useMemo(
     () =>
       summary.state.employees.slice().sort((a, b) => {
@@ -82,6 +107,10 @@ export default function AdminPage() {
       }),
     [summary.state.employees],
   );
+  const weekAlreadyClosed = summary.state.awardHistory.some((award) => award.weekKey === weekStartKey);
+  const weeklyPreview = rankedEmployees
+    .filter((employee) => employee.weeklyPoints > 0)
+    .slice(0, Math.max(summary.state.prizePool.length, 3));
 
   useEffect(() => {
     void loadSummary(adminPin);
@@ -164,6 +193,54 @@ export default function AdminPage() {
       setMessage(`Код входа для ${employeeForm.name || employeeForm.id}: ${payload.code}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось создать код.");
+    }
+  }
+
+  async function closeWeek() {
+    if (weekAlreadyClosed) {
+      setMessage("Выдача за эту неделю уже сформирована.");
+      return;
+    }
+
+    if (!window.confirm("Закрыть неделю и зафиксировать победителей?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/weekly-awards", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminPin ? { "x-admin-pin": adminPin } : {}),
+        },
+        body: JSON.stringify({
+          confirm: true,
+          resetWeeklyPoints,
+          weekKey: weekStartKey,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as CloseWeekResponse & {
+        detail?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.detail || payload.error || "Не удалось закрыть неделю.");
+      }
+
+      if (payload.duplicate) {
+        setMessage("Выдача за эту неделю уже была сформирована.");
+      } else {
+        const winnersCount = payload.winners?.length || 0;
+        setMessage(
+          `Неделя закрыта: ${winnersCount} победителей${payload.resetWeeklyPoints ? ", баллы недели сброшены" : ""}.`,
+        );
+      }
+
+      await loadSummary();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось закрыть неделю.");
     }
   }
 
@@ -288,9 +365,65 @@ export default function AdminPage() {
         <Metric label="Активные квизы" value={String(summary.stats.quizzes)} />
         <Metric label="Вопросы" value={String(summary.stats.questions)} />
         <Metric label="Попытки сегодня" value={String(summary.stats.attemptsToday)} />
+        <Metric label="Выдачи" value={String(summary.stats.weeklyAwards)} />
+        <Metric label="Баллы всего" value={formatNumber(summary.stats.totalPoints)} />
       </section>
 
       <div className="admin-grid">
+        <section className="panel admin-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">
+                Неделя с {displayDate(weekStartKey, { day: "numeric", month: "long" })}
+              </span>
+              <h2>Закрытие недели</h2>
+            </div>
+            <span className={`status-pill ${weekAlreadyClosed ? "done" : "waiting"}`}>
+              {weekAlreadyClosed ? "Закрыта" : "Активна"}
+            </span>
+          </div>
+
+          <div className="admin-list">
+            {weeklyPreview.length === 0 ? (
+              <div className="empty-state">Пока нет баллов за неделю.</div>
+            ) : (
+              weeklyPreview.map((employee, index) => (
+                <div className="admin-row" key={employee.id}>
+                  <span className="rank-place">{index + 1}</span>
+                  <span className="rank-avatar">{employee.avatar}</span>
+                  <span>
+                    <strong>{employee.name}</strong>
+                    <span>{summary.state.prizePool[index]?.title || "Бонус"}</span>
+                  </span>
+                  <span className="rank-score">
+                    <strong>{formatNumber(employee.weeklyPoints)}</strong>
+                    <span>баллов</span>
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="admin-inline-actions">
+            <label className="admin-check">
+              <input
+                checked={resetWeeklyPoints}
+                onChange={(event) => setResetWeeklyPoints(event.target.checked)}
+                type="checkbox"
+              />
+              Сбросить баллы недели
+            </label>
+            <button
+              className="primary-button compact"
+              disabled={weekAlreadyClosed || weeklyPreview.length === 0}
+              onClick={() => void closeWeek()}
+              type="button"
+            >
+              Закрыть неделю
+            </button>
+          </div>
+        </section>
+
         <section className="panel admin-panel">
           <div className="panel-heading">
             <div>

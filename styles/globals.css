@@ -776,6 +776,29 @@ button {
   justify-content: flex-end;
 }
 
+.admin-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--teal);
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(320px, 0.75fr);

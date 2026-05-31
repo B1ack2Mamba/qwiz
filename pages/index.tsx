@@ -3,7 +3,6 @@ import {
   AppState,
   Completion,
   Quiz,
-  WeeklyWinner,
   calculateScore,
   createInitialState,
   displayDate,
@@ -249,37 +248,6 @@ export default function HomePage() {
     showToast(`Начислено ${result.score} баллов: ${result.correct}/${activeQuiz.questions.length} правильных.`);
   }
 
-  function handleWeeklyAward() {
-    if (alreadyAwarded) {
-      showToast("Выдача за эту неделю уже сформирована.");
-      return;
-    }
-
-    const winners: WeeklyWinner[] = rankedEmployees.slice(0, 3).map((employee, index) => ({
-      place: index + 1,
-      employeeId: employee.id,
-      name: employee.name,
-      weeklyPoints: employee.weeklyPoints,
-      prize: appState.prizePool[index]?.title || "Бонус",
-    }));
-
-    setAppState((current) => ({
-      ...current,
-      awardHistory: [
-        ...current.awardHistory,
-        {
-          weekKey: weekStartKey,
-          label: `Неделя с ${displayDate(weekStartKey, { day: "numeric", month: "long" })}`,
-          winners,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    }));
-
-    void syncWeeklyAward(winners);
-    showToast("Недельная выдача сформирована.");
-  }
-
   async function syncAttempt(employeeId: string, attempt: Completion) {
     try {
       const response = await fetch("/api/quiz-attempts", {
@@ -309,20 +277,6 @@ export default function HomePage() {
     } catch (error) {
       console.warn("Attempt sync failed", error);
       showToast("Результат сохранен локально, синхронизация не прошла.");
-    }
-  }
-
-  async function syncWeeklyAward(winners: WeeklyWinner[]) {
-    try {
-      await fetch("/api/weekly-awards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekKey: weekStartKey, winners }),
-      });
-      await loadBootstrap(appState.selectedEmployeeId, sessionToken);
-    } catch (error) {
-      console.warn("Award sync failed", error);
-      showToast("Выдача сохранена локально, синхронизация не прошла.");
     }
   }
 
@@ -515,9 +469,9 @@ export default function HomePage() {
                 <span className="section-kicker">Бонусный фонд</span>
                 <h2 id="prize-title">Призы недели</h2>
               </div>
-              <button className="primary-button compact" type="button" disabled={alreadyAwarded} onClick={handleWeeklyAward}>
-                Сформировать выдачу
-              </button>
+              <span className={`status-pill ${alreadyAwarded ? "done" : "waiting"}`}>
+                {alreadyAwarded ? "Выдача готова" : "Идет неделя"}
+              </span>
             </div>
             <div className="prize-list">
               {appState.prizePool.map((prize) => (
