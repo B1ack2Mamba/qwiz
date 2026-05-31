@@ -9,23 +9,30 @@ import {
 } from "../lib/qwizData";
 import {
   DailyMission,
+  Dungeon,
+  Enhancement,
+  EnhancementId,
   GameProfile,
-  GearSlot,
-  MobEncounter,
   ProfessionId,
+  canEnterDungeon,
+  canForgeEnhancement,
   changeProfession,
   completeMission,
   contributeToBattle,
   createGameProfile,
   dailyMissions,
-  fightMob,
+  dungeons,
+  enterDungeon,
+  enhancements,
+  forgeEnhancement,
+  getDungeonPower,
+  getEnhancement,
+  getEnhancementCost,
   getPower,
   getProfession,
-  mobEncounters,
   professions,
   refreshDailyProfile,
   resourceLabels,
-  upgradeGear,
 } from "../lib/companyGame";
 
 const SELECTED_EMPLOYEE_KEY = "qwiz-selected-employee-id";
@@ -37,7 +44,7 @@ type GameSectionId = "hero" | "missions" | "craft" | "battle";
 const gameSections: Array<{ id: GameSectionId; label: string }> = [
   { id: "hero", label: "Герой" },
   { id: "missions", label: "Задания" },
-  { id: "craft", label: "Крафт" },
+  { id: "craft", label: "Усиления" },
   { id: "battle", label: "Битва" },
 ];
 
@@ -255,26 +262,34 @@ export default function HomePage() {
     updateProfile(nextProfile, nextProfile === profile ? "Задание недоступно." : `Задание закрыто: ${mission.title}.`);
   }
 
-  function runEncounter(mob: MobEncounter) {
+  function runEnhancement(enhancement: Enhancement) {
     if (!profile) {
       return;
     }
 
-    const beforeDefeated = profile.defeatedMobs.length;
-    const nextProfile = fightMob(profile, mob);
+    const previousStacks = profile.enhancements[enhancement.id];
+    const nextProfile = forgeEnhancement(profile, enhancement);
     updateProfile(
       nextProfile,
-      nextProfile.defeatedMobs.length > beforeDefeated ? `Победа: ${mob.name}.` : "Нужно больше силы.",
+      nextProfile.enhancements[enhancement.id] > previousStacks
+        ? `Усиление создано: ${enhancement.name}.`
+        : "Не хватает ресурсов.",
     );
   }
 
-  function runUpgrade(slot: GearSlot) {
+  function runDungeon(dungeon: Dungeon) {
     if (!profile) {
       return;
     }
 
-    const nextProfile = upgradeGear(profile, slot);
-    updateProfile(nextProfile, nextProfile === profile ? "Не хватает ресурсов." : "Экипировка улучшена.");
+    const previousRuns = profile.completedDungeons.length;
+    const nextProfile = enterDungeon(profile, dungeon);
+    updateProfile(
+      nextProfile,
+      nextProfile.completedDungeons.length > previousRuns
+        ? `Подземелье пройдено: ${dungeon.name}.`
+        : "Нужны усиления или больше силы.",
+    );
   }
 
   function runBattleContribution() {
@@ -389,7 +404,7 @@ export default function HomePage() {
         <header className="topbar game-topbar">
           <div>
             <span className="section-kicker">Корпоративная action-RPG</span>
-            <h2>Профессии, рейды, крафт и месячная битва</h2>
+            <h2>Профессии, усиления, подземелья и месячная битва</h2>
           </div>
           <div className="date-stack" aria-label="Текущая дата и неделя">
             <span>{displayDate(todayKey, { weekday: "long", day: "numeric", month: "long" })}</span>
@@ -478,46 +493,27 @@ export default function HomePage() {
           <section className={`panel game-panel mobile-section${activeSection === "craft" ? " is-active" : ""}`}>
             <div className="panel-heading">
               <div>
-                <span className="section-kicker">Крафт</span>
-                <h2>Оружие и броня</h2>
+                <span className="section-kicker">Усиления</span>
+                <h2>Ковка перед спуском</h2>
               </div>
-              <span className="status-pill done">3 уровня</span>
+              <span className="status-pill done">
+                Подземелий: {profile.completedDungeons.length}/{dungeons.length}
+              </span>
             </div>
-            <div className="gear-grid">
-              <GearCard
-                level={profile.gear.weapon}
-                onUpgrade={() => runUpgrade("weapon")}
-                title="Оружие"
-                subtitle="Влияет на рейды и силу героя"
-              />
-              <GearCard
-                level={profile.gear.armor}
-                onUpgrade={() => runUpgrade("armor")}
-                title="Броня"
-                subtitle="Повышает устойчивость в месячной битве"
-              />
+            <div className="enhancement-grid">
+              {enhancements.map((enhancement) => (
+                <EnhancementCard
+                  enhancement={enhancement}
+                  key={enhancement.id}
+                  onForge={() => runEnhancement(enhancement)}
+                  profile={profile}
+                />
+              ))}
             </div>
-            <div className="mob-list">
-              {mobEncounters.map((mob) => {
-                const defeated = profile.defeatedMobs.includes(mob.id);
-                return (
-                  <div className={`mob-row${defeated ? " is-defeated" : ""}`} key={mob.id}>
-                    <span className="mob-threat">{mob.threat}</span>
-                    <span>
-                      <strong>{mob.name}</strong>
-                      <span>Слабость: {getProfession(mob.weakness).name}</span>
-                    </span>
-                    <button
-                      className="secondary-button compact"
-                      disabled={defeated || profile.energy <= 0}
-                      onClick={() => runEncounter(mob)}
-                      type="button"
-                    >
-                      {defeated ? "Победа" : "Рейд"}
-                    </button>
-                  </div>
-                );
-              })}
+            <div className="dungeon-list">
+              {dungeons.map((dungeon) => (
+                <DungeonRow dungeon={dungeon} key={dungeon.id} onEnter={() => runDungeon(dungeon)} profile={profile} />
+              ))}
             </div>
           </section>
 
@@ -596,46 +592,132 @@ export default function HomePage() {
   );
 }
 
-function RewardLine({ rewards }: { rewards: Partial<Record<keyof typeof resourceLabels, number>> }) {
+function RewardLine({
+  prefix = "+",
+  rewards,
+}: {
+  prefix?: "+" | "-";
+  rewards: Partial<Record<keyof typeof resourceLabels, number>>;
+}) {
+  const entries = (Object.entries(rewards) as Array<[keyof typeof resourceLabels, number]>).filter(
+    ([, amount]) => amount > 0,
+  );
+
   return (
-    <div className="reward-line">
-      {(Object.entries(rewards) as Array<[keyof typeof resourceLabels, number]>).map(([resource, amount]) => (
+    <div className={`reward-line${prefix === "-" ? " is-cost" : ""}`}>
+      {entries.map(([resource, amount]) => (
         <span key={resource}>
-          +{amount} {resourceLabels[resource]}
+          {prefix}
+          {amount} {resourceLabels[resource]}
         </span>
       ))}
     </div>
   );
 }
 
-function GearCard({
-  level,
-  onUpgrade,
-  subtitle,
-  title,
+function EnhancementCard({
+  enhancement,
+  onForge,
+  profile,
 }: {
-  level: number;
-  onUpgrade: () => void;
-  subtitle: string;
-  title: string;
+  enhancement: Enhancement;
+  onForge: () => void;
+  profile: GameProfile;
 }) {
+  const stacks = profile.enhancements[enhancement.id] || 0;
+  const cost = getEnhancementCost(profile, enhancement);
+  const canForge = canForgeEnhancement(profile, enhancement);
+
   return (
-    <article className="gear-card">
+    <article className="enhancement-card">
+      <div className="enhancement-head">
+        <span className="enhancement-orb" aria-hidden="true">
+          {enhancement.crest}
+        </span>
+        <div>
+          <span className="section-kicker">{enhancement.school}</span>
+          <h3>{enhancement.name}</h3>
+          <p>{enhancement.description}</p>
+        </div>
+      </div>
+      <div className="enhancement-stats">
+        <span>
+          Стеков <strong>{stacks}</strong>
+        </span>
+        <span>
+          Сила <strong>+{stacks * enhancement.power}</strong>
+        </span>
+      </div>
       <div>
-        <span className="section-kicker">{subtitle}</span>
-        <h3>{title}</h3>
+        <span className="section-kicker">Цена</span>
+        <RewardLine prefix="-" rewards={cost} />
       </div>
-      <div className="gear-levels" aria-label={`${title}, уровень ${level}`}>
-        {[1, 2, 3].map((tier) => (
-          <span className={tier <= level ? "is-active" : ""} key={tier}>
-            {tier}
-          </span>
-        ))}
-      </div>
-      <button className="secondary-button compact" disabled={level >= 3} onClick={onUpgrade} type="button">
-        {level >= 3 ? "Максимум" : "Улучшить"}
+      <button className="secondary-button compact" disabled={!canForge} onClick={onForge} type="button">
+        {canForge ? "Усилить" : "Ресурсы"}
       </button>
     </article>
+  );
+}
+
+function DungeonRow({
+  dungeon,
+  onEnter,
+  profile,
+}: {
+  dungeon: Dungeon;
+  onEnter: () => void;
+  profile: GameProfile;
+}) {
+  const completed = profile.completedDungeons.includes(dungeon.id);
+  const currentPower = getDungeonPower(profile, dungeon);
+  const powerMet = currentPower >= dungeon.requiredPower;
+  const canEnter = canEnterDungeon(profile, dungeon);
+  const actionLabel = completed ? "Зачищено" : profile.energy <= 0 ? "Нет энергии" : canEnter ? "Пройти" : "Закрыто";
+
+  return (
+    <div className={`dungeon-row${completed ? " is-cleared" : ""}`}>
+      <span className="dungeon-depth">{dungeon.depth}</span>
+      <div className="dungeon-copy">
+        <span className="section-kicker">Специалист: {getProfession(dungeon.specialist).name}</span>
+        <strong>{dungeon.name}</strong>
+        <span>{dungeon.description}</span>
+        <RequirementLine profile={profile} requirements={dungeon.requiredEnhancements} />
+      </div>
+      <div className="dungeon-status">
+        <span className={powerMet ? "is-met" : ""}>
+          {currentPower}/{dungeon.requiredPower}
+        </span>
+        <RewardLine rewards={dungeon.rewards} />
+      </div>
+      <button className="secondary-button compact" disabled={!canEnter} onClick={onEnter} type="button">
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function RequirementLine({
+  profile,
+  requirements,
+}: {
+  profile: GameProfile;
+  requirements: Partial<Record<EnhancementId, number>>;
+}) {
+  const entries = (Object.entries(requirements) as Array<[EnhancementId, number]>).filter(([, amount]) => amount > 0);
+
+  return (
+    <div className="requirement-line">
+      {entries.map(([id, amount]) => {
+        const current = profile.enhancements[id] || 0;
+        const isMet = current >= amount;
+
+        return (
+          <span className={isMet ? "is-met" : ""} key={id}>
+            {getEnhancement(id).name} {current}/{amount}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 

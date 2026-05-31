@@ -1060,7 +1060,7 @@ button {
 }
 
 .resource-grid,
-.gear-grid,
+.enhancement-grid,
 .mission-grid {
   display: grid;
   gap: 12px;
@@ -1094,7 +1094,7 @@ button {
 }
 
 .mission-card,
-.gear-card {
+.enhancement-card {
   display: grid;
   gap: 12px;
   align-content: space-between;
@@ -1111,12 +1111,13 @@ button {
 }
 
 .mission-card h3,
-.gear-card h3 {
+.enhancement-card h3 {
   margin: 4px 0 0;
   font-size: 20px;
 }
 
-.mission-card p {
+.mission-card p,
+.enhancement-card p {
   margin: 8px 0 0;
   color: var(--muted);
   line-height: 1.45;
@@ -1138,43 +1139,65 @@ button {
   font-weight: 800;
 }
 
-.gear-grid {
+.reward-line.is-cost span {
+  background: #f2f5ef;
+  color: var(--muted);
+}
+
+.enhancement-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.gear-levels {
+.enhancement-head {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.enhancement-orb {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--sidebar);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.enhancement-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.gear-levels span {
-  display: grid;
+.enhancement-stats span {
   min-height: 42px;
-  place-items: center;
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f9fbf8;
   color: var(--muted);
-  font-weight: 900;
+  font-size: 12px;
 }
 
-.gear-levels span.is-active {
-  border-color: var(--teal);
-  background: var(--mint);
-  color: var(--teal-dark);
+.enhancement-stats strong {
+  display: block;
+  color: var(--ink);
+  font-size: 18px;
 }
 
-.mob-list,
+.dungeon-list,
 .team-list {
   display: grid;
   gap: 10px;
 }
 
-.mob-row,
+.dungeon-row,
 .team-row {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(160px, auto) auto;
   gap: 10px;
   align-items: center;
   padding: 12px;
@@ -1183,15 +1206,15 @@ button {
   background: #ffffff;
 }
 
-.mob-row.is-defeated {
+.dungeon-row.is-cleared {
   border-color: #9ed8c7;
   background: #f0fbf6;
 }
 
-.mob-threat {
+.dungeon-depth {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   place-items: center;
   border-radius: 8px;
   background: var(--rose);
@@ -1199,15 +1222,62 @@ button {
   font-weight: 900;
 }
 
-.mob-row strong,
-.mob-row span,
+.dungeon-copy,
+.dungeon-status {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dungeon-status {
+  justify-items: start;
+}
+
+.dungeon-status > span {
+  min-height: 28px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f2f5ef;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.dungeon-status > span.is-met {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
+.requirement-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.requirement-line span {
+  min-height: 24px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f2f5ef;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.requirement-line span.is-met {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
+.dungeon-row strong,
+.dungeon-row span,
 .team-row strong,
 .team-row span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.mob-row span span,
+.dungeon-copy > span:not(.section-kicker),
 .team-row span span,
 .battle-actions span {
   display: block;
@@ -1305,6 +1375,7 @@ button {
 
   .game-layout,
   .profession-grid,
+  .enhancement-grid,
   .mission-grid {
     grid-template-columns: 1fr;
   }
@@ -1420,7 +1491,7 @@ button {
   }
 
   .resource-grid,
-  .gear-grid {
+  .enhancement-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1438,12 +1509,13 @@ button {
     height: 42px;
   }
 
-  .mob-row,
+  .dungeon-row,
   .team-row {
     grid-template-columns: 42px minmax(0, 1fr);
   }
 
-  .mob-row .secondary-button,
+  .dungeon-row .secondary-button,
+  .dungeon-status,
   .team-row .rank-score {
     grid-column: 1 / -1;
   }
