@@ -139,6 +139,10 @@ button {
   background: var(--sidebar-soft);
 }
 
+.nav-button.is-active {
+  background: var(--sidebar-soft);
+}
+
 .employee-panel {
   display: grid;
   gap: 14px;
@@ -967,6 +971,300 @@ button {
   color: var(--teal-dark);
 }
 
+.game-shell {
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.05), rgba(183, 121, 31, 0.06)),
+    var(--paper);
+}
+
+.game-main {
+  display: grid;
+  gap: 18px;
+}
+
+.game-topbar {
+  margin-bottom: 0;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.78fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.game-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.game-log-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.profession-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profession-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.profession-card.is-selected {
+  border-color: var(--teal);
+  background: #f0fbf6;
+}
+
+.profession-card strong,
+.profession-card span,
+.profession-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profession-card span span,
+.profession-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profession-card small {
+  grid-column: 1 / -1;
+  font-weight: 800;
+}
+
+.profession-crest {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--sidebar);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.resource-grid,
+.gear-grid,
+.mission-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.resource-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.resource-card {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+}
+
+.resource-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.resource-card strong {
+  font-size: 22px;
+}
+
+.mission-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mission-card,
+.gear-card {
+  display: grid;
+  gap: 12px;
+  align-content: space-between;
+  min-height: 210px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mission-card.is-complete {
+  border-color: #9ed8c7;
+  background: #f0fbf6;
+}
+
+.mission-card h3,
+.gear-card h3 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.mission-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.reward-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reward-line span {
+  min-height: 26px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gear-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gear-levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.gear-levels span {
+  display: grid;
+  min-height: 42px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.gear-levels span.is-active {
+  border-color: var(--teal);
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
+.mob-list,
+.team-list {
+  display: grid;
+  gap: 10px;
+}
+
+.mob-row,
+.team-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mob-row.is-defeated {
+  border-color: #9ed8c7;
+  background: #f0fbf6;
+}
+
+.mob-threat {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--rose);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.mob-row strong,
+.mob-row span,
+.team-row strong,
+.team-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mob-row span span,
+.team-row span span,
+.battle-actions span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.battle-panel {
+  overflow: hidden;
+}
+
+.battle-map {
+  position: relative;
+  min-height: 210px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(23, 53, 47, 0.92), rgba(47, 111, 159, 0.78)),
+    #17352f;
+}
+
+.battle-map svg {
+  position: absolute;
+  inset: 18px;
+  width: calc(100% - 36px);
+  height: calc(100% - 36px);
+}
+
+.battle-map path,
+.battle-map circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.66);
+  stroke-width: 8;
+}
+
+.battle-map circle {
+  fill: rgba(217, 242, 233, 0.18);
+  stroke-width: 5;
+}
+
+.battle-readiness {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  height: 10px;
+  background: var(--amber);
+}
+
+.battle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
 .toast {
   position: fixed;
   right: 22px;
@@ -1002,6 +1300,12 @@ button {
   }
 
   .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-layout,
+  .profession-grid,
+  .mission-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1074,12 +1378,20 @@ button {
     display: block;
   }
 
+  .game-layout {
+    display: block;
+  }
+
+  .game-log-panel {
+    display: none;
+  }
+
   .mobile-section {
     display: none;
   }
 
   .mobile-section.is-active {
-    display: block;
+    display: grid;
   }
 
   .leaderboard-panel.mobile-section.is-active,
@@ -1105,6 +1417,35 @@ button {
 
   .toast {
     bottom: 88px;
+  }
+
+  .resource-grid,
+  .gear-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mission-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profession-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+    min-height: 104px;
+  }
+
+  .profession-crest {
+    width: 42px;
+    height: 42px;
+  }
+
+  .mob-row,
+  .team-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .mob-row .secondary-button,
+  .team-row .rank-score {
+    grid-column: 1 / -1;
   }
 
   .result-score {

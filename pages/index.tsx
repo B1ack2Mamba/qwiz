@@ -1,27 +1,44 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   AppState,
-  Completion,
-  Quiz,
-  calculateScore,
   createInitialState,
   displayDate,
   formatNumber,
   getTodayKey,
   getWeekStartKey,
-  pickDailyQuiz,
 } from "../lib/qwizData";
+import {
+  DailyMission,
+  GameProfile,
+  GearSlot,
+  MobEncounter,
+  ProfessionId,
+  changeProfession,
+  completeMission,
+  contributeToBattle,
+  createGameProfile,
+  dailyMissions,
+  fightMob,
+  getPower,
+  getProfession,
+  mobEncounters,
+  professions,
+  refreshDailyProfile,
+  resourceLabels,
+  upgradeGear,
+} from "../lib/companyGame";
 
 const SELECTED_EMPLOYEE_KEY = "qwiz-selected-employee-id";
 const SESSION_TOKEN_KEY = "qwiz-session-token";
+const GAME_STORAGE_PREFIX = "qwiz-company-game:";
 
-type MobileSectionId = "daily-quiz" | "leaderboard" | "weekly-prizes" | "activity";
+type GameSectionId = "hero" | "missions" | "craft" | "battle";
 
-const mobileSections: Array<{ id: MobileSectionId; label: string }> = [
-  { id: "daily-quiz", label: "Квиз" },
-  { id: "leaderboard", label: "Рейтинг" },
-  { id: "weekly-prizes", label: "Призы" },
-  { id: "activity", label: "Активность" },
+const gameSections: Array<{ id: GameSectionId; label: string }> = [
+  { id: "hero", label: "Герой" },
+  { id: "missions", label: "Задания" },
+  { id: "craft", label: "Крафт" },
+  { id: "battle", label: "Битва" },
 ];
 
 type ToastState = {
@@ -49,29 +66,29 @@ export default function HomePage() {
   const [sessionToken, setSessionToken] = useState("");
   const [dataSource, setDataSource] = useState<BootstrapResponse["source"]>("local");
   const [loadError, setLoadError] = useState("");
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [currentAnswers, setCurrentAnswers] = useState<number[]>([]);
-  const [activeMobileSection, setActiveMobileSection] = useState<MobileSectionId>("daily-quiz");
+  const [profile, setProfile] = useState<GameProfile | null>(null);
+  const [activeSection, setActiveSection] = useState<GameSectionId>("hero");
   const [toast, setToast] = useState<ToastState>({ message: "", visible: false });
 
   const todayKey = useMemo(() => getTodayKey(), []);
   const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
-  const quiz = useMemo(
-    () => pickDailyQuiz(appState.quizzes, todayKey, appState.scheduledQuizId),
-    [appState.quizzes, appState.scheduledQuizId, todayKey],
-  );
   const selectedEmployee =
     appState.employees.find((employee) => employee.id === appState.selectedEmployeeId) || appState.employees[0];
-  const completion = selectedEmployee ? appState.completions[todayKey]?.[selectedEmployee.id] || null : null;
-  const todayCompletions = Object.values(appState.completions[todayKey] || {});
   const rankedEmployees = appState.employees.slice().sort((a, b) => {
     if (b.weeklyPoints !== a.weeklyPoints) {
       return b.weeklyPoints - a.weeklyPoints;
     }
     return b.totalPoints - a.totalPoints;
   });
-  const maxWeeklyPoints = Math.max(...rankedEmployees.map((employee) => employee.weeklyPoints), 1);
-  const alreadyAwarded = appState.awardHistory.some((award) => award.weekKey === weekStartKey);
+
+  const profession = profile ? getProfession(profile.professionId) : professions[0];
+  const heroPower = profile ? getPower(profile) : 0;
+  const monthlyReadiness = profile
+    ? Math.min(100, Math.round(((profile.battleContribution + rankedEmployees.length * 8) / 140) * 100))
+    : 0;
+  const totalResources = profile
+    ? Object.values(profile.resources).reduce((total, amount) => total + amount, 0)
+    : 0;
 
   useEffect(() => {
     const selectedEmployeeId = window.localStorage.getItem(SELECTED_EMPLOYEE_KEY) || undefined;
@@ -87,6 +104,37 @@ export default function HomePage() {
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selectedEmployee || !sessionToken) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const storageKey = `${GAME_STORAGE_PREFIX}${selectedEmployee.id}`;
+      try {
+        const savedProfile = window.localStorage.getItem(storageKey);
+        const parsed = savedProfile ? (JSON.parse(savedProfile) as GameProfile) : null;
+        setProfile(
+          parsed?.employeeId === selectedEmployee.id
+            ? refreshDailyProfile(parsed, todayKey)
+            : createGameProfile(selectedEmployee.id, todayKey),
+        );
+      } catch {
+        setProfile(createGameProfile(selectedEmployee.id, todayKey));
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedEmployee, sessionToken, todayKey]);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    window.localStorage.setItem(`${GAME_STORAGE_PREFIX}${profile.employeeId}`, JSON.stringify(profile));
+  }, [profile]);
 
   useEffect(() => {
     if (!toast.visible) {
@@ -145,13 +193,8 @@ export default function HomePage() {
     setToast({ message, visible: true });
   }
 
-  function resetQuizProgress() {
-    setCurrentQuestionIndex(0);
-    setCurrentAnswers([]);
-  }
-
-  function openMobileSection(sectionId: MobileSectionId) {
-    setActiveMobileSection(sectionId);
+  function openSection(sectionId: GameSectionId) {
+    setActiveSection(sectionId);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -187,8 +230,8 @@ export default function HomePage() {
     window.localStorage.removeItem(SELECTED_EMPLOYEE_KEY);
     setSessionToken("");
     setAppState(createInitialState());
+    setProfile(null);
     setLoading(false);
-    resetQuizProgress();
 
     if (token) {
       await fetch("/api/auth/logout", {
@@ -198,104 +241,57 @@ export default function HomePage() {
     }
   }
 
-  function chooseAnswer(answerIndex: number) {
-    setCurrentAnswers((answers) => {
-      const nextAnswers = answers.slice();
-      nextAnswers[currentQuestionIndex] = answerIndex;
-      return nextAnswers;
-    });
+  function updateProfile(nextProfile: GameProfile, message: string) {
+    setProfile(nextProfile);
+    showToast(message);
   }
 
-  function submitAnswer() {
-    if (!quiz || currentAnswers[currentQuestionIndex] === undefined) {
+  function runMission(mission: DailyMission) {
+    if (!profile) {
       return;
     }
 
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex((index) => index + 1);
-      return;
-    }
-
-    completeQuiz(quiz);
+    const nextProfile = completeMission(profile, mission);
+    updateProfile(nextProfile, nextProfile === profile ? "Задание недоступно." : `Задание закрыто: ${mission.title}.`);
   }
 
-  function completeQuiz(activeQuiz: Quiz) {
-    if (!selectedEmployee) {
+  function runEncounter(mob: MobEncounter) {
+    if (!profile) {
       return;
     }
 
-    if (completion) {
-      showToast("Квиз за сегодня уже закрыт.");
-      return;
-    }
-
-    const result = calculateScore(activeQuiz, currentAnswers, selectedEmployee.streak);
-    const nextCompletion: Completion = {
-      quizId: activeQuiz.id,
-      score: result.score,
-      correct: result.correct,
-      accuracy: result.accuracy,
-      answers: currentAnswers.slice(),
-      streakAfter: result.streakAfter,
-      completedAt: new Date().toISOString(),
-    };
-
-    setAppState((current) => ({
-      ...current,
-      employees: current.employees.map((employee) =>
-        employee.id === selectedEmployee.id
-          ? {
-              ...employee,
-              totalPoints: employee.totalPoints + result.score,
-              weeklyPoints: employee.weeklyPoints + result.score,
-              streak: result.streakAfter,
-            }
-          : employee,
-      ),
-      completions: {
-        ...current.completions,
-        [todayKey]: {
-          ...(current.completions[todayKey] || {}),
-          [selectedEmployee.id]: nextCompletion,
-        },
-      },
-    }));
-
-    resetQuizProgress();
-    void syncAttempt(selectedEmployee.id, nextCompletion);
-    showToast(`Начислено ${result.score} баллов: ${result.correct}/${activeQuiz.questions.length} правильных.`);
+    const beforeDefeated = profile.defeatedMobs.length;
+    const nextProfile = fightMob(profile, mob);
+    updateProfile(
+      nextProfile,
+      nextProfile.defeatedMobs.length > beforeDefeated ? `Победа: ${mob.name}.` : "Нужно больше силы.",
+    );
   }
 
-  async function syncAttempt(employeeId: string, attempt: Completion) {
-    try {
-      const response = await fetch("/api/quiz-attempts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(sessionToken ? { "x-qwiz-session": sessionToken } : {}),
-        },
-        body: JSON.stringify({
-          employeeId,
-          quizId: attempt.quizId,
-          dateKey: todayKey,
-          score: attempt.score,
-          correct: attempt.correct,
-          accuracy: attempt.accuracy,
-          answers: attempt.answers,
-          streakAfter: attempt.streakAfter,
-        }),
-      });
-      const payload = await response.json();
-
-      if (payload.duplicate) {
-        showToast("Сегодняшняя попытка уже была сохранена.");
-      }
-
-      await loadBootstrap(employeeId, sessionToken);
-    } catch (error) {
-      console.warn("Attempt sync failed", error);
-      showToast("Результат сохранен локально, синхронизация не прошла.");
+  function runUpgrade(slot: GearSlot) {
+    if (!profile) {
+      return;
     }
+
+    const nextProfile = upgradeGear(profile, slot);
+    updateProfile(nextProfile, nextProfile === profile ? "Не хватает ресурсов." : "Экипировка улучшена.");
+  }
+
+  function runBattleContribution() {
+    if (!profile) {
+      return;
+    }
+
+    const nextProfile = contributeToBattle(profile);
+    updateProfile(nextProfile, nextProfile === profile ? "Нужны провиант и эфир." : "Вклад в битву внесен.");
+  }
+
+  function runProfessionChange(professionId: ProfessionId) {
+    if (!profile) {
+      return;
+    }
+
+    updateProfile(changeProfession(profile, professionId), "Профессия обновлена.");
   }
 
   if (!sessionToken) {
@@ -307,8 +303,8 @@ export default function HomePage() {
               Q
             </div>
             <div className="brand-copy">
-              <span>Qwiz</span>
-              <h1>Team League</h1>
+              <span>GuildOps</span>
+              <h1>Corporate League</h1>
             </div>
           </div>
           <div>
@@ -333,34 +329,34 @@ export default function HomePage() {
     );
   }
 
-  if (!selectedEmployee) {
+  if (!selectedEmployee || !profile) {
     return (
       <main className="empty-page">
-        <div className="empty-state">Нет сотрудников для отображения.</div>
+        <div className="empty-state">{loading ? "Загружаем героя." : "Нет сотрудника для отображения."}</div>
       </main>
     );
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className="app-shell game-shell">
+      <aside className="sidebar game-sidebar">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">
-            Q
+            G
           </div>
           <div className="brand-copy">
-            <span>Qwiz</span>
-            <h1>Team League</h1>
+            <span>GuildOps</span>
+            <h1>Corporate League</h1>
           </div>
         </div>
 
         <nav className="side-nav" aria-label="Разделы">
-          {mobileSections.map(({ id, label }) => (
+          {gameSections.map(({ id, label }) => (
             <button
-              className="nav-button"
+              className={`nav-button${activeSection === id ? " is-active" : ""}`}
               key={id}
               type="button"
-              onClick={() => document.querySelector(`#${id}`)?.scrollIntoView({ block: "start" })}
+              onClick={() => openSection(id)}
             >
               {label}
             </button>
@@ -368,15 +364,15 @@ export default function HomePage() {
         </nav>
 
         <section className="employee-panel" aria-labelledby="employee-title">
-          <div className="section-kicker">Профиль</div>
-          <h2 id="employee-title">Участник</h2>
+          <div className="section-kicker">Герой</div>
+          <h2 id="employee-title">{selectedEmployee.name}</h2>
           <div className="employee-card">
             <div className="employee-avatar" aria-hidden="true">
-              {selectedEmployee.avatar}
+              {profession.crest}
             </div>
             <div>
-              <strong>{selectedEmployee.name}</strong>
-              <span>{selectedEmployee.role}</span>
+              <strong>{profession.name}</strong>
+              <span>{profession.role}</span>
             </div>
           </div>
         </section>
@@ -389,194 +385,203 @@ export default function HomePage() {
         </button>
       </aside>
 
-      <main className="main-content">
-        <header className="topbar">
+      <main className="main-content game-main">
+        <header className="topbar game-topbar">
           <div>
-            <span className="section-kicker">Внутренняя лига знаний</span>
-            <h2>Ежедневные квизы и недельные бонусы</h2>
+            <span className="section-kicker">Корпоративная action-RPG</span>
+            <h2>Профессии, рейды, крафт и месячная битва</h2>
           </div>
           <div className="date-stack" aria-label="Текущая дата и неделя">
             <span>{displayDate(todayKey, { weekday: "long", day: "numeric", month: "long" })}</span>
-            <strong>Неделя с {displayDate(weekStartKey, { day: "numeric", month: "long" })}</strong>
+            <strong>Сезон недели с {displayDate(weekStartKey, { day: "numeric", month: "long" })}</strong>
           </div>
         </header>
 
         {loadError && <div className="alert-line">{loadError}</div>}
 
-        <section className="metrics-grid" aria-label="Показатели участника">
-          <Metric label="Всего баллов" value={formatNumber(selectedEmployee.totalPoints)} />
-          <Metric label="Баллы недели" value={formatNumber(selectedEmployee.weeklyPoints)} />
-          <Metric label="Серия дней" value={String(selectedEmployee.streak)} />
-          <Metric
-            label="Команда сегодня"
-            value={`${Math.round((todayCompletions.length / appState.employees.length) * 100)}%`}
-          />
+        <section className="metrics-grid game-metrics" aria-label="Показатели героя">
+          <Metric label="Сила героя" value={formatNumber(heroPower)} />
+          <Metric label="Уровень" value={String(profile.level)} />
+          <Metric label="Энергия" value={`${profile.energy}/4`} />
+          <Metric label="Готовность" value={`${monthlyReadiness}%`} />
         </section>
 
-        <div className="workspace-grid">
-          <section
-            id="daily-quiz"
-            className={`panel quiz-panel mobile-section${activeMobileSection === "daily-quiz" ? " is-active" : ""}`}
-            aria-live="polite"
-          >
-            {loading ? (
-              <div className="empty-state">Загружаем квиз.</div>
-            ) : !quiz ? (
-              <div className="empty-state">На сегодня нет активного квиза.</div>
-            ) : completion ? (
-              <CompletedQuiz employeeName={selectedEmployee.name} completion={completion} quiz={quiz} />
-            ) : (
-              <ActiveQuiz
-                answers={currentAnswers}
-                currentQuestionIndex={currentQuestionIndex}
-                onAnswer={chooseAnswer}
-                onBack={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
-                onSubmit={submitAnswer}
-                quiz={quiz}
-              />
-            )}
-          </section>
-
-          <section
-            id="leaderboard"
-            className={`panel leaderboard-panel mobile-section${
-              activeMobileSection === "leaderboard" ? " is-active" : ""
-            }`}
-            aria-labelledby="leaderboard-title"
-          >
+        <div className="game-layout">
+          <section className={`panel game-panel mobile-section${activeSection === "hero" ? " is-active" : ""}`}>
             <div className="panel-heading">
               <div>
-                <span className="section-kicker">Текущая неделя</span>
-                <h2 id="leaderboard-title">Рейтинг</h2>
+                <span className="section-kicker">Профессии</span>
+                <h2>Выбор роли</h2>
               </div>
-              <span className="status-pill waiting">{dataSource === "supabase" ? "Supabase" : "Локально"}</span>
+              <span className="status-pill waiting">{dataSource === "supabase" ? "Команда онлайн" : "Локально"}</span>
             </div>
-            <div className="leaderboard-list">
-              {rankedEmployees.map((employee, index) => {
-                const width = Math.max(6, Math.round((employee.weeklyPoints / maxWeeklyPoints) * 100));
+            <div className="profession-grid">
+              {professions.map((item) => (
+                <button
+                  className={`profession-card${profile.professionId === item.id ? " is-selected" : ""}`}
+                  key={item.id}
+                  onClick={() => runProfessionChange(item.id)}
+                  type="button"
+                >
+                  <span className="profession-crest">{item.crest}</span>
+                  <span>
+                    <strong>{item.name}</strong>
+                    <span>{item.function}</span>
+                  </span>
+                  <small>{item.bonus}</small>
+                </button>
+              ))}
+            </div>
+            <div className="resource-grid">
+              {(Object.keys(resourceLabels) as Array<keyof typeof resourceLabels>).map((resource) => (
+                <div className="resource-card" key={resource}>
+                  <span>{resourceLabels[resource]}</span>
+                  <strong>{profile.resources[resource]}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={`panel game-panel mobile-section${activeSection === "missions" ? " is-active" : ""}`}>
+            <div className="panel-heading">
+              <div>
+                <span className="section-kicker">Ежедневные задания</span>
+                <h2>Усиление через активность</h2>
+              </div>
+              <span className="status-pill waiting">Ресурсов: {totalResources}</span>
+            </div>
+            <div className="mission-grid">
+              {dailyMissions.map((mission) => {
+                const completed = profile.completedMissions.includes(mission.id);
                 return (
-                  <button
-                    className={`rank-row${employee.id === selectedEmployee.id ? " is-selected" : ""}`}
-                    key={employee.id}
-                    type="button"
-                    onClick={() =>
-                      employee.id === selectedEmployee.id
-                        ? undefined
-                        : showToast("Личный вход закреплен за вашим профилем.")
-                    }
-                  >
-                    <span className="rank-place">{index + 1}</span>
-                    <span className="rank-avatar">{employee.avatar}</span>
-                    <span className="rank-person">
-                      <strong>{employee.name}</strong>
-                      <span>
-                        {employee.role} · серия {employee.streak}
-                      </span>
-                    </span>
-                    <span className="rank-score">
-                      <strong>{formatNumber(employee.weeklyPoints)}</strong>
-                      <span>баллов</span>
-                    </span>
-                    <span className="rank-meter" aria-hidden="true">
-                      <span style={{ width: `${width}%` }} />
-                    </span>
-                  </button>
+                  <article className={`mission-card${completed ? " is-complete" : ""}`} key={mission.id}>
+                    <div>
+                      <span className="section-kicker">{mission.type}</span>
+                      <h3>{mission.title}</h3>
+                      <p>{mission.description}</p>
+                    </div>
+                    <RewardLine rewards={mission.rewards} />
+                    <button
+                      className="primary-button compact"
+                      disabled={completed || profile.energy <= 0}
+                      onClick={() => runMission(mission)}
+                      type="button"
+                    >
+                      {completed ? "Выполнено" : "Пройти"}
+                    </button>
+                  </article>
                 );
               })}
             </div>
           </section>
 
-          <section
-            id="weekly-prizes"
-            className={`panel prize-panel mobile-section${
-              activeMobileSection === "weekly-prizes" ? " is-active" : ""
-            }`}
-            aria-labelledby="prize-title"
-          >
+          <section className={`panel game-panel mobile-section${activeSection === "craft" ? " is-active" : ""}`}>
             <div className="panel-heading">
               <div>
-                <span className="section-kicker">Бонусный фонд</span>
-                <h2 id="prize-title">Призы недели</h2>
+                <span className="section-kicker">Крафт</span>
+                <h2>Оружие и броня</h2>
               </div>
-              <span className={`status-pill ${alreadyAwarded ? "done" : "waiting"}`}>
-                {alreadyAwarded ? "Выдача готова" : "Идет неделя"}
-              </span>
+              <span className="status-pill done">3 уровня</span>
             </div>
-            <div className="prize-list">
-              {appState.prizePool.map((prize) => (
-                <div className="prize-row" key={prize.place}>
-                  <span className="prize-place">{prize.place}</span>
-                  <span>
-                    <strong>{prize.title}</strong>
-                    <span>{prize.detail}</span>
-                  </span>
-                </div>
-              ))}
+            <div className="gear-grid">
+              <GearCard
+                level={profile.gear.weapon}
+                onUpgrade={() => runUpgrade("weapon")}
+                title="Оружие"
+                subtitle="Влияет на рейды и силу героя"
+              />
+              <GearCard
+                level={profile.gear.armor}
+                onUpgrade={() => runUpgrade("armor")}
+                title="Броня"
+                subtitle="Повышает устойчивость в месячной битве"
+              />
             </div>
-            <div className="history-block">
-              <h3>История выдач</h3>
-              <div className="history-list">
-                {appState.awardHistory.length === 0 ? (
-                  <div className="empty-state">Выдач пока нет.</div>
-                ) : (
-                  appState.awardHistory
-                    .slice()
-                    .reverse()
-                    .map((award) => (
-                      <div className="history-row" key={award.weekKey}>
-                        <strong>{award.label}</strong>
-                        <span>
-                          {award.winners
-                            .map((winner) => `${winner.place}. ${winner.name} (${formatNumber(winner.weeklyPoints)})`)
-                            .join(" · ")}
-                        </span>
-                      </div>
-                    ))
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section
-            id="activity"
-            className={`panel activity-panel mobile-section${activeMobileSection === "activity" ? " is-active" : ""}`}
-            aria-labelledby="activity-title"
-          >
-            <div className="panel-heading">
-              <div>
-                <span className="section-kicker">Сегодня</span>
-                <h2 id="activity-title">Активность команды</h2>
-              </div>
-            </div>
-            <div className="activity-list">
-              {appState.employees.map((employee) => {
-                const employeeCompletion = appState.completions[todayKey]?.[employee.id];
+            <div className="mob-list">
+              {mobEncounters.map((mob) => {
+                const defeated = profile.defeatedMobs.includes(mob.id);
                 return (
-                  <div className="activity-row" key={employee.id}>
-                    <span className="activity-avatar">{employee.avatar}</span>
-                    <span className="activity-person">
-                      <strong>{employee.name}</strong>
-                      <span>{employee.role}</span>
+                  <div className={`mob-row${defeated ? " is-defeated" : ""}`} key={mob.id}>
+                    <span className="mob-threat">{mob.threat}</span>
+                    <span>
+                      <strong>{mob.name}</strong>
+                      <span>Слабость: {getProfession(mob.weakness).name}</span>
                     </span>
-                    {employeeCompletion ? (
-                      <span className="status-pill done">+{employeeCompletion.score}</span>
-                    ) : (
-                      <span className="status-pill waiting">Ожидает</span>
-                    )}
+                    <button
+                      className="secondary-button compact"
+                      disabled={defeated || profile.energy <= 0}
+                      onClick={() => runEncounter(mob)}
+                      type="button"
+                    >
+                      {defeated ? "Победа" : "Рейд"}
+                    </button>
                   </div>
                 );
               })}
             </div>
           </section>
+
+          <section className={`panel game-panel battle-panel mobile-section${activeSection === "battle" ? " is-active" : ""}`}>
+            <div className="panel-heading">
+              <div>
+                <span className="section-kicker">Событие месяца</span>
+                <h2>Битва команд</h2>
+              </div>
+              <span className="status-pill waiting">{monthlyReadiness}% готовности</span>
+            </div>
+            <div className="battle-map" aria-hidden="true">
+              <svg viewBox="0 0 420 180" role="img">
+                <path d="M32 126 C118 36 210 166 312 58 C350 22 380 34 398 48" />
+                <circle cx="62" cy="104" r="24" />
+                <circle cx="204" cy="110" r="30" />
+                <circle cx="340" cy="62" r="26" />
+              </svg>
+              <div className="battle-readiness" style={{ width: `${monthlyReadiness}%` }} />
+            </div>
+            <div className="battle-actions">
+              <button className="primary-button" onClick={runBattleContribution} type="button">
+                Внести вклад
+              </button>
+              <span>Требуется: 1 провиант и 1 эфир</span>
+            </div>
+            <div className="team-list">
+              {rankedEmployees.slice(0, 6).map((employee, index) => (
+                <div className="team-row" key={employee.id}>
+                  <span className="rank-place">{index + 1}</span>
+                  <span>
+                    <strong>{employee.name}</strong>
+                    <span>{employee.role}</span>
+                  </span>
+                  <span className="rank-score">{formatNumber(employee.weeklyPoints)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
+
+        <section className="panel game-log-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">Журнал</span>
+              <h2>Последние действия</h2>
+            </div>
+          </div>
+          <div className="history-list">
+            {profile.log.map((item, index) => (
+              <div className="history-row" key={`${item}-${index}`}>
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
-      <nav className="mobile-tabbar" aria-label="Разделы приложения">
-        {mobileSections.map((section) => (
+      <nav className="mobile-tabbar" aria-label="Разделы игры">
+        {gameSections.map((section) => (
           <button
-            className={`mobile-tab${activeMobileSection === section.id ? " is-active" : ""}`}
+            className={`mobile-tab${activeSection === section.id ? " is-active" : ""}`}
             key={section.id}
-            onClick={() => openMobileSection(section.id)}
+            onClick={() => openSection(section.id)}
             type="button"
           >
             {section.label}
@@ -591,122 +596,46 @@ export default function HomePage() {
   );
 }
 
-function ActiveQuiz({
-  answers,
-  currentQuestionIndex,
-  onAnswer,
-  onBack,
-  onSubmit,
-  quiz,
-}: {
-  answers: number[];
-  currentQuestionIndex: number;
-  onAnswer: (answerIndex: number) => void;
-  onBack: () => void;
-  onSubmit: () => void;
-  quiz: Quiz;
-}) {
-  const question = quiz.questions[currentQuestionIndex];
-  const selectedAnswer = answers[currentQuestionIndex];
-  const progress = Math.round((currentQuestionIndex / quiz.questions.length) * 100);
-  const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
-
+function RewardLine({ rewards }: { rewards: Partial<Record<keyof typeof resourceLabels, number>> }) {
   return (
-    <>
-      <div className="panel-heading">
-        <div>
-          <span className="section-kicker">Ежедневный квиз</span>
-          <h2>{quiz.title}</h2>
-        </div>
-      </div>
-      <div className="quiz-meta">
-        <span className="pill">{quiz.category}</span>
-        <span className="pill">{quiz.questions.length} вопросов</span>
-        <span className="pill">до {quiz.questions.length * 12 + 32} баллов</span>
-      </div>
-      <div className="progress-track" aria-label="Прогресс квиза">
-        <div className="progress-bar" style={{ width: `${progress}%` }} />
-      </div>
-      <div className="question-box">
-        <span className="question-number">
-          Вопрос {currentQuestionIndex + 1} из {quiz.questions.length}
+    <div className="reward-line">
+      {(Object.entries(rewards) as Array<[keyof typeof resourceLabels, number]>).map(([resource, amount]) => (
+        <span key={resource}>
+          +{amount} {resourceLabels[resource]}
         </span>
-        <h3>{question.text}</h3>
-        <div className="option-list" role="radiogroup" aria-label="Варианты ответа">
-          {question.options.map((option, index) => (
-            <button
-              className={`option-button${selectedAnswer === index ? " is-selected" : ""}`}
-              key={option}
-              type="button"
-              aria-pressed={selectedAnswer === index}
-              onClick={() => onAnswer(index)}
-            >
-              <span className="option-letter">{String.fromCharCode(65 + index)}</span>
-              <span className="option-text">{option}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="panel-actions">
-        <button className="secondary-button" type="button" disabled={currentQuestionIndex === 0} onClick={onBack}>
-          Назад
-        </button>
-        <button className="primary-button" type="button" disabled={selectedAnswer === undefined} onClick={onSubmit}>
-          {isLastQuestion ? "Завершить" : "Дальше"}
-        </button>
-      </div>
-    </>
+      ))}
+    </div>
   );
 }
 
-function CompletedQuiz({ employeeName, completion, quiz }: { employeeName: string; completion: Completion; quiz: Quiz }) {
+function GearCard({
+  level,
+  onUpgrade,
+  subtitle,
+  title,
+}: {
+  level: number;
+  onUpgrade: () => void;
+  subtitle: string;
+  title: string;
+}) {
   return (
-    <>
-      <div className="panel-heading">
-        <div>
-          <span className="section-kicker">Ежедневный квиз</span>
-          <h2>Сегодня закрыто</h2>
-        </div>
+    <article className="gear-card">
+      <div>
+        <span className="section-kicker">{subtitle}</span>
+        <h3>{title}</h3>
       </div>
-      <div className="result-card">
-        <div className="result-score">
-          <div>
-            <div className="score-number">+{completion.score}</div>
-            <div className="score-label">баллов за день</div>
-          </div>
-          <p className="result-copy">{employeeName} закрепляет серию и остается в недельном рейтинге.</p>
-        </div>
-        <div className="result-stats">
-          <div className="result-stat">
-            <span>Правильных</span>
-            <strong>
-              {completion.correct}/{quiz.questions.length}
-            </strong>
-          </div>
-          <div className="result-stat">
-            <span>Точность</span>
-            <strong>{completion.accuracy}%</strong>
-          </div>
-          <div className="result-stat">
-            <span>Серия</span>
-            <strong>{completion.streakAfter}</strong>
-          </div>
-        </div>
-        <div className="review-list">
-          {quiz.questions.map((question, index) => {
-            const selected = completion.answers[index];
-            const isCorrect = selected === question.correct;
-            return (
-              <div className={`review-item ${isCorrect ? "is-correct" : "is-wrong"}`} key={question.text}>
-                <strong>{question.text}</strong>
-                <span className="review-answer">Ваш ответ: {question.options[selected] || "нет ответа"}</span>
-                {!isCorrect && <span className="review-answer">Правильно: {question.options[question.correct]}</span>}
-              </div>
-            );
-          })}
-        </div>
+      <div className="gear-levels" aria-label={`${title}, уровень ${level}`}>
+        {[1, 2, 3].map((tier) => (
+          <span className={tier <= level ? "is-active" : ""} key={tier}>
+            {tier}
+          </span>
+        ))}
       </div>
-    </>
+      <button className="secondary-button compact" disabled={level >= 3} onClick={onUpgrade} type="button">
+        {level >= 3 ? "Максимум" : "Улучшить"}
+      </button>
+    </article>
   );
 }
 
