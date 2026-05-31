@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getEmployeeBySession, readSessionToken } from "../../lib/employeeAuth";
 import { createInitialState, getTodayKey } from "../../lib/qwizData";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
 import { loadQwizState } from "../../lib/qwizSupabase";
@@ -11,7 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const todayKey = typeof req.query.dateKey === "string" ? req.query.dateKey : getTodayKey();
-  const selectedEmployeeId = typeof req.query.employeeId === "string" ? req.query.employeeId : undefined;
   const supabase = getSupabaseAdmin();
 
   if (!supabase) {
@@ -20,8 +20,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const state = await loadQwizState(supabase, todayKey, selectedEmployeeId);
-    res.status(200).json({ source: "supabase", state });
+    if (!readSessionToken(req)) {
+      res.status(401).json({ error: "auth_required" });
+      return;
+    }
+
+    const employee = await getEmployeeBySession(supabase, req);
+    if (!employee) {
+      res.status(401).json({ error: "invalid_session" });
+      return;
+    }
+
+    const state = await loadQwizState(supabase, todayKey, employee.id);
+    res.status(200).json({ authenticatedEmployeeId: employee?.id || null, source: "supabase", state });
   } catch (error) {
     res.status(500).json({
       error: "supabase_error",

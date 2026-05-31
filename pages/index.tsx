@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   AppState,
   Completion,
@@ -14,6 +14,7 @@ import {
 } from "../lib/qwizData";
 
 const SELECTED_EMPLOYEE_KEY = "qwiz-selected-employee-id";
+const SESSION_TOKEN_KEY = "qwiz-session-token";
 
 type ToastState = {
   message: string;
@@ -21,13 +22,23 @@ type ToastState = {
 };
 
 type BootstrapResponse = {
+  authenticatedEmployeeId?: string | null;
   source: "local" | "supabase";
   state: AppState;
 };
 
+type LoginResponse = {
+  token: string;
+  employee: {
+    id: string;
+  };
+};
+
 export default function HomePage() {
   const [appState, setAppState] = useState<AppState>(() => createInitialState());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loginCode, setLoginCode] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
   const [dataSource, setDataSource] = useState<BootstrapResponse["source"]>("local");
   const [loadError, setLoadError] = useState("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -52,7 +63,16 @@ export default function HomePage() {
 
   useEffect(() => {
     const selectedEmployeeId = window.localStorage.getItem(SELECTED_EMPLOYEE_KEY) || undefined;
-    void loadBootstrap(selectedEmployeeId);
+    const token = window.localStorage.getItem(SESSION_TOKEN_KEY) || "";
+    if (!token) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSessionToken(token);
+      void loadBootstrap(selectedEmployeeId, token);
+    }, 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -65,9 +85,14 @@ export default function HomePage() {
     return () => window.clearTimeout(timer);
   }, [toast.visible]);
 
-  async function loadBootstrap(selectedEmployeeId = appState.selectedEmployeeId) {
+  async function loadBootstrap(selectedEmployeeId = appState.selectedEmployeeId, token = sessionToken) {
     setLoading(true);
     setLoadError("");
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const params = new URLSearchParams({ dateKey: todayKey });
@@ -75,13 +100,25 @@ export default function HomePage() {
         params.set("employeeId", selectedEmployeeId);
       }
 
-      const response = await fetch(`/api/bootstrap?${params.toString()}`);
+      const response = await fetch(`/api/bootstrap?${params.toString()}`, {
+        headers: token ? { "x-qwiz-session": token } : {},
+      });
+      if (response.status === 401) {
+        window.localStorage.removeItem(SESSION_TOKEN_KEY);
+        window.localStorage.removeItem(SELECTED_EMPLOYEE_KEY);
+        setSessionToken("");
+        throw new Error("Сессия истекла. Войдите заново по коду.");
+      }
+
       if (!response.ok) {
         throw new Error("Не удалось загрузить данные приложения.");
       }
 
       const payload = (await response.json()) as BootstrapResponse;
       setAppState(payload.state);
+      if (payload.authenticatedEmployeeId) {
+        window.localStorage.setItem(SELECTED_EMPLOYEE_KEY, payload.authenticatedEmployeeId);
+      }
       setDataSource(payload.source);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Не удалось загрузить данные приложения.");
@@ -101,10 +138,47 @@ export default function HomePage() {
     setCurrentAnswers([]);
   }
 
-  function selectEmployee(employeeId: string) {
-    window.localStorage.setItem(SELECTED_EMPLOYEE_KEY, employeeId);
-    setAppState((current) => ({ ...current, selectedEmployeeId: employeeId }));
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoadError("");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: loginCode }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Код не найден или уже заменен.");
+      }
+
+      const payload = (await response.json()) as LoginResponse;
+      window.localStorage.setItem(SESSION_TOKEN_KEY, payload.token);
+      window.localStorage.setItem(SELECTED_EMPLOYEE_KEY, payload.employee.id);
+      setSessionToken(payload.token);
+      setLoginCode("");
+      await loadBootstrap(payload.employee.id, payload.token);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Не удалось войти.");
+    }
+  }
+
+  async function logout() {
+    const token = sessionToken;
+    window.localStorage.removeItem(SESSION_TOKEN_KEY);
+    window.localStorage.removeItem(SELECTED_EMPLOYEE_KEY);
+    setSessionToken("");
+    setAppState(createInitialState());
+    setLoading(false);
     resetQuizProgress();
+
+    if (token) {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "x-qwiz-session": token },
+      }).catch(() => undefined);
+    }
   }
 
   function chooseAnswer(answerIndex: number) {
@@ -210,7 +284,10 @@ export default function HomePage() {
     try {
       const response = await fetch("/api/quiz-attempts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { "x-qwiz-session": sessionToken } : {}),
+        },
         body: JSON.stringify({
           employeeId,
           quizId: attempt.quizId,
@@ -228,7 +305,7 @@ export default function HomePage() {
         showToast("Сегодняшняя попытка уже была сохранена.");
       }
 
-      await loadBootstrap(employeeId);
+      await loadBootstrap(employeeId, sessionToken);
     } catch (error) {
       console.warn("Attempt sync failed", error);
       showToast("Результат сохранен локально, синхронизация не прошла.");
@@ -242,11 +319,46 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ weekKey: weekStartKey, winners }),
       });
-      await loadBootstrap(appState.selectedEmployeeId);
+      await loadBootstrap(appState.selectedEmployeeId, sessionToken);
     } catch (error) {
       console.warn("Award sync failed", error);
       showToast("Выдача сохранена локально, синхронизация не прошла.");
     }
+  }
+
+  if (!sessionToken) {
+    return (
+      <main className="login-page">
+        <section className="login-panel panel">
+          <div className="brand login-brand">
+            <div className="brand-mark" aria-hidden="true">
+              Q
+            </div>
+            <div className="brand-copy">
+              <span>Qwiz</span>
+              <h1>Team League</h1>
+            </div>
+          </div>
+          <div>
+            <span className="section-kicker">Личный вход</span>
+            <h2>Введите код сотрудника</h2>
+          </div>
+          <form className="login-form" onSubmit={login}>
+            <input
+              className="text-input login-code-input"
+              inputMode="numeric"
+              onChange={(event) => setLoginCode(event.target.value)}
+              placeholder="6-значный код"
+              value={loginCode}
+            />
+            <button className="primary-button" type="submit">
+              Войти
+            </button>
+          </form>
+          {loadError && <div className="alert-line">{loadError}</div>}
+        </section>
+      </main>
+    );
   }
 
   if (!selectedEmployee) {
@@ -291,21 +403,6 @@ export default function HomePage() {
         <section className="employee-panel" aria-labelledby="employee-title">
           <div className="section-kicker">Профиль</div>
           <h2 id="employee-title">Участник</h2>
-          <label className="select-label" htmlFor="employeeSelect">
-            Сотрудник
-          </label>
-          <select
-            id="employeeSelect"
-            className="employee-select"
-            value={selectedEmployee.id}
-            onChange={(event) => selectEmployee(event.target.value)}
-          >
-            {appState.employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name}
-              </option>
-            ))}
-          </select>
           <div className="employee-card">
             <div className="employee-avatar" aria-hidden="true">
               {selectedEmployee.avatar}
@@ -319,6 +416,9 @@ export default function HomePage() {
 
         <button className="ghost-button" type="button" onClick={() => void loadBootstrap(selectedEmployee.id)}>
           Обновить данные
+        </button>
+        <button className="ghost-button" type="button" onClick={() => void logout()}>
+          Выйти
         </button>
       </aside>
 
@@ -382,7 +482,11 @@ export default function HomePage() {
                     className={`rank-row${employee.id === selectedEmployee.id ? " is-selected" : ""}`}
                     key={employee.id}
                     type="button"
-                    onClick={() => selectEmployee(employee.id)}
+                    onClick={() =>
+                      employee.id === selectedEmployee.id
+                        ? undefined
+                        : showToast("Личный вход закреплен за вашим профилем.")
+                    }
                   >
                     <span className="rank-place">{index + 1}</span>
                     <span className="rank-avatar">{employee.avatar}</span>

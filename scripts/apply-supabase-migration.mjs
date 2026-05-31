@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 function readLocalEnv() {
   const env = {};
@@ -51,24 +51,32 @@ if (!accessToken) {
 }
 
 const projectRef = new URL(supabaseUrl).host.split(".")[0];
-const query = readFileSync("supabase/migrations/001_qwiz_schema.sql", "utf8");
-const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${accessToken}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    query,
-    read_only: false,
-  }),
-});
+const migrationFiles = readdirSync("supabase/migrations")
+  .filter((fileName) => fileName.endsWith(".sql"))
+  .sort();
 
-if (!response.ok) {
-  const detail = await response.text();
-  console.error(`Supabase migration failed: ${response.status} ${response.statusText}`);
-  console.error(detail);
-  process.exit(1);
+for (const fileName of migrationFiles) {
+  const query = readFileSync(`supabase/migrations/${fileName}`, "utf8");
+  const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+      read_only: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error(`Supabase migration ${fileName} failed: ${response.status} ${response.statusText}`);
+    console.error(detail);
+    process.exit(1);
+  }
+
+  console.log(`${fileName}: applied`);
 }
 
-console.log("Supabase migration applied.");
+console.log("Supabase migrations applied.");

@@ -83,6 +83,7 @@ const tables = [
   "qwiz_prizes",
   "qwiz_daily_attempts",
   "qwiz_point_transactions",
+  "qwiz_employee_sessions",
   "qwiz_weekly_awards",
 ];
 

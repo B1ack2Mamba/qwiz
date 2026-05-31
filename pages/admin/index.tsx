@@ -139,6 +139,34 @@ export default function AdminPage() {
     }
   }
 
+  async function generateEmployeeCode() {
+    if (!employeeForm.id) {
+      setMessage("Сначала выберите сотрудника или укажите его ID.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/employee-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminPin ? { "x-admin-pin": adminPin } : {}),
+        },
+        body: JSON.stringify({ employeeId: employeeForm.id }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || payload.error || "Не удалось создать код.");
+      }
+
+      const payload = (await response.json()) as { code: string };
+      setMessage(`Код входа для ${employeeForm.name || employeeForm.id}: ${payload.code}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось создать код.");
+    }
+  }
+
   async function submitPrize(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -309,6 +337,9 @@ export default function AdminPage() {
             </div>
             <button className="primary-button compact" type="submit">
               Сохранить сотрудника
+            </button>
+            <button className="secondary-button compact" onClick={() => void generateEmployeeCode()} type="button">
+              Код входа
             </button>
           </form>
 

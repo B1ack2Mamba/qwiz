@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getEmployeeBySession, readSessionToken } from "../../lib/employeeAuth";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
 
 type AttemptRequest = {
@@ -26,8 +27,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const body = req.body as AttemptRequest;
+  if (!readSessionToken(req)) {
+    res.status(401).json({ error: "auth_required" });
+    return;
+  }
+
+  const sessionEmployee = await getEmployeeBySession(supabase, req);
+  if (!sessionEmployee) {
+    res.status(401).json({ error: "invalid_session" });
+    return;
+  }
+
+  const employeeId = sessionEmployee.id;
   const hasRequiredPayload =
-    typeof body.employeeId === "string" &&
+    typeof employeeId === "string" &&
     typeof body.quizId === "string" &&
     typeof body.dateKey === "string" &&
     typeof body.score === "number" &&
@@ -44,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: attempt, error: attemptError } = await supabase
     .from("qwiz_daily_attempts")
     .insert({
-      employee_id: body.employeeId,
+      employee_id: employeeId,
       quiz_id: body.quizId,
       date_key: body.dateKey,
       score: body.score,
@@ -67,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { error: transactionError } = await supabase.from("qwiz_point_transactions").insert({
-    employee_id: body.employeeId,
+    employee_id: employeeId,
     amount: body.score,
     reason: "daily_quiz",
     source_type: "qwiz_daily_attempt",
@@ -82,7 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: employee, error: employeeError } = await supabase
     .from("qwiz_employees")
     .select("total_points, weekly_points")
-    .eq("id", body.employeeId)
+    .eq("id", employeeId)
     .single();
 
   if (employeeError) {
@@ -98,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       streak: body.streakAfter,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", body.employeeId);
+    .eq("id", employeeId);
 
   if (updateError) {
     res.status(500).json({ error: "supabase_error", detail: updateError.message });
