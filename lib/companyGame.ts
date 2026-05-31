@@ -1,7 +1,10 @@
+import { formatUtcDateKey, parseDateKey } from "./qwizData";
+
 export type ProfessionId = "pathfinder" | "miner" | "warden" | "artisan" | "enchanter" | "tactician";
 export type ResourceId = "ore" | "essence" | "schematics" | "supplies";
 export type EnhancementId = "strike" | "guard" | "route" | "spark" | "workbench" | "banner";
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
+export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
@@ -51,6 +54,7 @@ export type GameProfile = {
   employeeId: string;
   dayKey: string;
   professionId: ProfessionId;
+  professionChangeSeasonKey: string;
   level: number;
   xp: number;
   energy: number;
@@ -69,6 +73,14 @@ type LegacyGameProfile = Partial<GameProfile> & {
 };
 
 const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "workbench", "banner"];
+const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
+
+export const PROFESSION_SEASON_LENGTH_DAYS = 14;
+export const professionChangeCost: Partial<ResourceBag> = {
+  ore: 2,
+  essence: 2,
+  schematics: 2,
+};
 
 export const resourceLabels: Record<ResourceId, string> = {
   ore: "Металл",
@@ -276,6 +288,7 @@ export function createGameProfile(employeeId: string, dayKey: string): GameProfi
     employeeId,
     dayKey,
     professionId: professionFromEmployee(employeeId),
+    professionChangeSeasonKey: "",
     level: 1,
     xp: 0,
     energy: 4,
@@ -313,6 +326,40 @@ export function refreshDailyProfile(profile: GameProfile, dayKey: string) {
 
 export function getProfession(id: ProfessionId) {
   return professions.find((profession) => profession.id === id) || professions[0];
+}
+
+export function getProfessionSeason(dayKey: string) {
+  const seasonIndex = getProfessionSeasonIndex(dayKey);
+  const startDate = parseDateKey(PROFESSION_SEASON_EPOCH_KEY);
+  startDate.setUTCDate(startDate.getUTCDate() + seasonIndex * PROFESSION_SEASON_LENGTH_DAYS);
+
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(endDate.getUTCDate() + PROFESSION_SEASON_LENGTH_DAYS - 1);
+
+  const startKey = formatUtcDateKey(startDate);
+  return {
+    key: startKey,
+    startKey,
+    endKey: formatUtcDateKey(endDate),
+    lengthDays: PROFESSION_SEASON_LENGTH_DAYS,
+  };
+}
+
+export function getProfessionChangeCost() {
+  return { ...professionChangeCost };
+}
+
+export function getProfessionChangeMode(profile: GameProfile, professionId: ProfessionId): ProfessionChangeMode {
+  if (profile.professionId === professionId) {
+    return "selected";
+  }
+
+  const currentSeason = getProfessionSeason(profile.dayKey);
+  if (profile.professionChangeSeasonKey !== currentSeason.key) {
+    return "free";
+  }
+
+  return hasResources(profile.resources, professionChangeCost) ? "paid" : "blocked";
 }
 
 export function getEnhancement(id: EnhancementId) {
@@ -448,13 +495,27 @@ export function contributeToBattle(profile: GameProfile) {
 }
 
 export function changeProfession(profile: GameProfile, professionId: ProfessionId) {
-  if (profile.professionId === professionId) {
+  const mode = getProfessionChangeMode(profile, professionId);
+  if (mode === "selected" || mode === "blocked") {
     return profile;
   }
 
   const next = cloneProfile(profile);
+
+  if (mode === "free") {
+    next.professionChangeSeasonKey = getProfessionSeason(next.dayKey).key;
+  }
+
+  if (mode === "paid") {
+    removeResources(next.resources, professionChangeCost);
+  }
+
   next.professionId = professionId;
-  next.log.unshift(`Профессия изменена: ${getProfession(professionId).name}.`);
+  next.log.unshift(
+    mode === "free"
+      ? `Бесплатная смена профессии: ${getProfession(professionId).name}.`
+      : `Профессия изменена за ресурсы: ${getProfession(professionId).name}.`,
+  );
   return touch(next);
 }
 
@@ -479,6 +540,7 @@ function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile
     employeeId: legacy.employeeId || "local",
     dayKey: legacy.dayKey || dayKey,
     professionId: isProfessionId(legacy.professionId) ? legacy.professionId : professionFromEmployee(legacy.employeeId || "local"),
+    professionChangeSeasonKey: typeof legacy.professionChangeSeasonKey === "string" ? legacy.professionChangeSeasonKey : "",
     level: Math.max(1, Math.floor(Number(legacy.level || 1))),
     xp: Math.max(0, Math.floor(Number(legacy.xp || 0))),
     energy: Math.max(0, Math.floor(Number(legacy.energy ?? 4))),
@@ -512,6 +574,13 @@ function normalizeDungeonIds(ids: string[] | undefined): DungeonId[] {
 
 function isProfessionId(id: unknown): id is ProfessionId {
   return typeof id === "string" && professions.some((profession) => profession.id === id);
+}
+
+function getProfessionSeasonIndex(dayKey: string) {
+  const date = parseDateKey(dayKey);
+  const epochDate = parseDateKey(PROFESSION_SEASON_EPOCH_KEY);
+  const dayDistance = Math.floor((date.getTime() - epochDate.getTime()) / 86400000);
+  return Math.floor(dayDistance / PROFESSION_SEASON_LENGTH_DAYS);
 }
 
 function addRewards(resources: ResourceBag, rewards: Partial<ResourceBag>) {

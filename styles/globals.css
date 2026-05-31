@@ -1028,6 +1028,11 @@ button {
   background: #f0fbf6;
 }
 
+.profession-card:focus-visible {
+  outline: 3px solid rgba(47, 111, 159, 0.28);
+  outline-offset: 2px;
+}
+
 .profession-card strong,
 .profession-card span,
 .profession-card small {
@@ -1046,6 +1051,47 @@ button {
 .profession-card small {
   grid-column: 1 / -1;
   font-weight: 800;
+}
+
+.profession-change-note {
+  min-height: 26px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f2f5ef;
+  color: var(--muted);
+  justify-self: start;
+}
+
+.profession-change-note.is-free,
+.profession-change-note.is-selected {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
+.profession-change-note.is-paid {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.profession-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+}
+
+.profession-rule > span {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.profession-rule > span > span {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .profession-crest {
@@ -1502,6 +1548,10 @@ button {
   .profession-card {
     grid-template-columns: 42px minmax(0, 1fr);
     min-height: 104px;
+  }
+
+  .profession-rule {
+    grid-template-columns: 1fr;
   }
 
   .profession-crest {

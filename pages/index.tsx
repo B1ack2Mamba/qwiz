@@ -28,6 +28,9 @@ import {
   getDungeonPower,
   getEnhancement,
   getEnhancementCost,
+  getProfessionChangeCost,
+  getProfessionChangeMode,
+  getProfessionSeason,
   getPower,
   getProfession,
   professions,
@@ -71,7 +74,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [loginCode, setLoginCode] = useState("");
   const [sessionToken, setSessionToken] = useState("");
-  const [dataSource, setDataSource] = useState<BootstrapResponse["source"]>("local");
   const [loadError, setLoadError] = useState("");
   const [profile, setProfile] = useState<GameProfile | null>(null);
   const [activeSection, setActiveSection] = useState<GameSectionId>("hero");
@@ -89,6 +91,9 @@ export default function HomePage() {
   });
 
   const profession = profile ? getProfession(profile.professionId) : professions[0];
+  const professionSeason = profile ? getProfessionSeason(profile.dayKey) : null;
+  const freeProfessionChangeAvailable =
+    profile && professionSeason ? profile.professionChangeSeasonKey !== professionSeason.key : false;
   const heroPower = profile ? getPower(profile) : 0;
   const monthlyReadiness = profile
     ? Math.min(100, Math.round(((profile.battleContribution + rankedEmployees.length * 8) / 140) * 100))
@@ -186,11 +191,9 @@ export default function HomePage() {
       if (payload.authenticatedEmployeeId) {
         window.localStorage.setItem(SELECTED_EMPLOYEE_KEY, payload.authenticatedEmployeeId);
       }
-      setDataSource(payload.source);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Не удалось загрузить данные приложения.");
       setAppState(createInitialState());
-      setDataSource("local");
     } finally {
       setLoading(false);
     }
@@ -306,7 +309,23 @@ export default function HomePage() {
       return;
     }
 
-    updateProfile(changeProfession(profile, professionId), "Профессия обновлена.");
+    const mode = getProfessionChangeMode(profile, professionId);
+    const nextProfile = changeProfession(profile, professionId);
+
+    if (mode === "selected") {
+      updateProfile(nextProfile, "Эта профессия уже выбрана.");
+      return;
+    }
+
+    if (mode === "blocked") {
+      updateProfile(nextProfile, `Смена уже использована. Нужно: ${formatResourceList(getProfessionChangeCost())}.`);
+      return;
+    }
+
+    updateProfile(
+      nextProfile,
+      mode === "free" ? "Бесплатная смена профессии использована." : "Профессия изменена за ресурсы.",
+    );
   }
 
   if (!sessionToken) {
@@ -408,7 +427,15 @@ export default function HomePage() {
           </div>
           <div className="date-stack" aria-label="Текущая дата и неделя">
             <span>{displayDate(todayKey, { weekday: "long", day: "numeric", month: "long" })}</span>
-            <strong>Сезон недели с {displayDate(weekStartKey, { day: "numeric", month: "long" })}</strong>
+            <strong>
+              Ролевой сезон{" "}
+              {professionSeason
+                ? `${displayDate(professionSeason.startKey, { day: "numeric", month: "long" })} - ${displayDate(
+                    professionSeason.endKey,
+                    { day: "numeric", month: "long" },
+                  )}`
+                : `с ${displayDate(weekStartKey, { day: "numeric", month: "long" })}`}
+            </strong>
           </div>
         </header>
 
@@ -428,24 +455,45 @@ export default function HomePage() {
                 <span className="section-kicker">Профессии</span>
                 <h2>Выбор роли</h2>
               </div>
-              <span className="status-pill waiting">{dataSource === "supabase" ? "Команда онлайн" : "Локально"}</span>
+              <span className={`status-pill ${freeProfessionChangeAvailable ? "done" : "waiting"}`}>
+                {freeProfessionChangeAvailable ? "1 смена доступна" : "Смена за ресурсы"}
+              </span>
             </div>
-            <div className="profession-grid">
-              {professions.map((item) => (
-                <button
-                  className={`profession-card${profile.professionId === item.id ? " is-selected" : ""}`}
-                  key={item.id}
-                  onClick={() => runProfessionChange(item.id)}
-                  type="button"
-                >
-                  <span className="profession-crest">{item.crest}</span>
+            {professionSeason && (
+              <div className="profession-rule">
+                <span>
+                  <strong>{professionSeason.lengthDays} дней</strong>
                   <span>
-                    <strong>{item.name}</strong>
-                    <span>{item.function}</span>
+                    {displayDate(professionSeason.startKey, { day: "numeric", month: "long" })} -{" "}
+                    {displayDate(professionSeason.endKey, { day: "numeric", month: "long" })}
                   </span>
-                  <small>{item.bonus}</small>
-                </button>
-              ))}
+                </span>
+                <span>
+                  <strong>{freeProfessionChangeAvailable ? "Бесплатная смена" : "Платная смена"}</strong>
+                  <RewardLine prefix="-" rewards={getProfessionChangeCost()} />
+                </span>
+              </div>
+            )}
+            <div className="profession-grid">
+              {professions.map((item) => {
+                const mode = getProfessionChangeMode(profile, item.id);
+                return (
+                  <button
+                    className={`profession-card${profile.professionId === item.id ? " is-selected" : ""}`}
+                    key={item.id}
+                    onClick={() => runProfessionChange(item.id)}
+                    type="button"
+                  >
+                    <span className="profession-crest">{item.crest}</span>
+                    <span>
+                      <strong>{item.name}</strong>
+                      <span>{item.function}</span>
+                    </span>
+                    <small>{item.bonus}</small>
+                    <small className={`profession-change-note is-${mode}`}>{getProfessionChangeLabel(mode)}</small>
+                  </button>
+                );
+              })}
             </div>
             <div className="resource-grid">
               {(Object.keys(resourceLabels) as Array<keyof typeof resourceLabels>).map((resource) => (
@@ -613,6 +661,29 @@ function RewardLine({
       ))}
     </div>
   );
+}
+
+function getProfessionChangeLabel(mode: ReturnType<typeof getProfessionChangeMode>) {
+  if (mode === "selected") {
+    return "Выбрано";
+  }
+
+  if (mode === "free") {
+    return "Бесплатная смена";
+  }
+
+  if (mode === "paid") {
+    return `Стоимость: ${formatResourceList(getProfessionChangeCost())}`;
+  }
+
+  return "Не хватает ресурсов";
+}
+
+function formatResourceList(resources: Partial<Record<keyof typeof resourceLabels, number>>) {
+  return (Object.entries(resources) as Array<[keyof typeof resourceLabels, number]>)
+    .filter(([, amount]) => amount > 0)
+    .map(([resource, amount]) => `${amount} ${resourceLabels[resource]}`)
+    .join(", ");
 }
 
 function EnhancementCard({
