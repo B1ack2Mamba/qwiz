@@ -331,6 +331,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
           {combatState.combo > 0 && <b className={styles.playerComboAura} aria-hidden="true" />}
           {spriteSheet && <b className={styles.playerStageAura} aria-hidden="true" />}
           {isPlayerProtected && <b className={styles.playerGuardAura} aria-hidden="true" />}
+          {hasPrecisionCounter && <b className={styles.playerPrecisionAura} aria-hidden="true" />}
           {spriteSheet ? (
             <span
               aria-label={getCharacterSpriteLabel(profile.professionId)}

@@ -997,6 +997,58 @@
   border-radius: 999px;
 }
 
+.playerPrecisionAura {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  z-index: 4;
+  display: block;
+  width: calc(var(--player-sprite-width) + 34px);
+  height: calc(var(--player-sprite-height) - 8px);
+  border: 1px solid rgba(255, 242, 212, 0.82);
+  border-radius: 48% 48% 42% 42%;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(255, 242, 212, 0.16), transparent 62%),
+    conic-gradient(from 0.18turn, transparent 0 10%, rgba(255, 242, 212, 0.62) 10% 14%, transparent 14% 42%, rgba(217, 242, 233, 0.42) 42% 46%, transparent 46% 100%);
+  box-shadow:
+    0 0 18px rgba(255, 242, 212, 0.3),
+    inset 0 0 18px rgba(255, 255, 255, 0.08);
+  opacity: 0.82;
+  pointer-events: none;
+  transform: translateX(-50%) scaleX(var(--player-face-sign));
+  transform-origin: 50% 74%;
+  animation: playerPrecisionAuraPulse 640ms ease-in-out infinite alternate;
+}
+
+.playerPrecisionAura::before,
+.playerPrecisionAura::after {
+  position: absolute;
+  left: 50%;
+  width: 58%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 242, 212, 0.86), transparent);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.playerPrecisionAura::before {
+  top: 29%;
+  transform: translateX(-50%) rotate(-11deg);
+}
+
+.playerPrecisionAura::after {
+  bottom: 25%;
+  transform: translateX(-50%) rotate(11deg);
+}
+
+.player:not(.hasSprite) .playerPrecisionAura {
+  top: -14px;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+}
+
 .player.hasSprite.professionPathfinder {
   --player-sprite-width: 72px;
   --player-sprite-height: 137px;
@@ -2048,6 +2100,20 @@
     opacity: 0.86;
     filter: blur(0.3px);
     transform: translateX(-50%) scaleX(var(--player-face-sign)) scale(1.04, 1.02);
+  }
+}
+
+@keyframes playerPrecisionAuraPulse {
+  from {
+    opacity: 0.5;
+    filter: blur(0);
+    transform: translateX(-50%) scaleX(var(--player-face-sign)) scale(0.96, 0.98) rotate(-2deg);
+  }
+
+  to {
+    opacity: 0.9;
+    filter: blur(0.25px);
+    transform: translateX(-50%) scaleX(var(--player-face-sign)) scale(1.06, 1.02) rotate(2deg);
   }
 }
 
