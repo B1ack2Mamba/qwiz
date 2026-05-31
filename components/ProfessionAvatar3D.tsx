@@ -38,7 +38,7 @@ export const enhancementWeaponNames: Record<EnhancementId, string> = {
   guard: "Щит смены",
   route: "Маршрутный резак",
   spark: "Эфирный посох",
-  workbench: "Верстачный молот",
+  workbench: "Ресурсная кирка",
   banner: "Знамя ядра",
 };
 
@@ -47,15 +47,15 @@ const visualStageLabels = ["База", "Заряд", "Редкий вид", "Э�
 const professionStyle: Record<ProfessionId, CharacterStyle> = {
   pathfinder: { accent: 0x1e9f91, accentDark: 0x126a61, glow: 0x7fd8c5, hair: 0x3a2a20, skin: 0xd9a77d, tool: "blade" },
   miner: { accent: 0xb7791f, accentDark: 0x7b4d14, glow: 0xf2bd5f, hair: 0x49392e, skin: 0xc98f67, tool: "pickaxe" },
-  warden: { accent: 0xb94747, accentDark: 0x7d2c2c, glow: 0xf08a8a, hair: 0x2b2724, skin: 0xd6a06f, tool: "shield" },
-  artisan: { accent: 0x6f5f48, accentDark: 0x463c2f, glow: 0xd6b58a, hair: 0x2f2a24, skin: 0xe0ad81, tool: "hammer" },
+  warden: { accent: 0xb94747, accentDark: 0x7d2c2c, glow: 0xf08a8a, hair: 0x2b2724, skin: 0xd6a06f, tool: "blade" },
+  artisan: { accent: 0x6f5f48, accentDark: 0x463c2f, glow: 0xd6b58a, hair: 0x2f2a24, skin: 0xe0ad81, tool: "shield" },
   enchanter: { accent: 0x6f63c7, accentDark: 0x493a91, glow: 0xc2b6ff, hair: 0x4b423e, skin: 0xd7a17a, tool: "staff" },
   tactician: { accent: 0x2f6f9f, accentDark: 0x1f4f73, glow: 0x8ec7ee, hair: 0x352b25, skin: 0xd39b72, tool: "banner" },
 };
 
 const enhancementStyle: Record<EnhancementId, CharacterStyle> = {
-  strike: professionStyle.warden,
-  guard: professionStyle.artisan,
+  strike: { ...professionStyle.warden, tool: "blade" },
+  guard: { ...professionStyle.artisan, tool: "shield" },
   route: professionStyle.pathfinder,
   spark: professionStyle.enchanter,
   workbench: professionStyle.miner,
