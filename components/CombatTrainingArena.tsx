@@ -320,7 +320,10 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
             <div className={styles.intentLine} key={`${enemy.id}-intent`} style={intentLineStyle(enemy.position, enemy.attackTarget)} />
           ) : null,
         )}
-        <div className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving)} style={playerArenaStyle(combatState)}>
+        <div
+          className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving, profile.professionId)}
+          style={playerArenaStyle(combatState)}
+        >
           {spriteSheet ? (
             <span
               aria-label={getCharacterSpriteLabel(profile.professionId)}
@@ -721,12 +724,22 @@ function playerSpriteStyle(spriteSheet: string, weaponLevel: number): CSSPropert
   } as CSSProperties;
 }
 
-function playerClass(state: CombatState, hasSprite: boolean, isMoving: boolean) {
+const playerProfessionClass: Record<GameProfile["professionId"], string> = {
+  artisan: styles.professionArtisan,
+  enchanter: styles.professionEnchanter,
+  miner: styles.professionMiner,
+  pathfinder: styles.professionPathfinder,
+  tactician: styles.professionTactician,
+  warden: styles.professionWarden,
+};
+
+function playerClass(state: CombatState, hasSprite: boolean, isMoving: boolean, professionId: GameProfile["professionId"]) {
   const isProtected = state.timeMs < state.player.invulnerableUntil;
   const isDodging = state.timeMs < state.player.dodgeUntil;
   const isPrecise = state.timeMs < state.player.precisionUntil;
   const isAttacking = state.timeMs < state.player.attackUntil;
-  return `${styles.player}${hasSprite ? ` ${styles.hasSprite}` : ""}${isProtected ? ` ${styles.isProtected}` : ""}${
+  const professionClass = hasSprite ? playerProfessionClass[professionId] || "" : "";
+  return `${styles.player}${hasSprite ? ` ${styles.hasSprite}` : ""}${professionClass ? ` ${professionClass}` : ""}${isProtected ? ` ${styles.isProtected}` : ""}${
     isDodging ? ` ${styles.isDodging}` : ""
   }${isPrecise ? ` ${styles.isPrecise}` : ""}${isAttacking ? ` ${styles.isAttacking}` : ""}${isMoving ? ` ${styles.isMoving}` : ""}`;
 }

@@ -707,12 +707,72 @@
   --player-step-back-y: 0px;
   --player-step-x: 4px;
   --player-step-y: 0px;
-  width: 84px;
-  height: 132px;
+  --player-sprite-width: 78px;
+  --player-sprite-height: 132px;
+  --player-sprite-bottom: 0px;
+  --player-sprite-shadow-width: 62px;
+  --player-sprite-contrast: 1;
+  --player-sprite-saturation: 1.04;
+
+  width: calc(var(--player-sprite-width) + 6px);
+  height: var(--player-sprite-height);
   border: 0;
   background: transparent;
   box-shadow: none;
   transform: translate(-50%, -72%);
+}
+
+.player.hasSprite.professionPathfinder {
+  --player-sprite-width: 72px;
+  --player-sprite-height: 137px;
+  --player-sprite-bottom: 2px;
+  --player-sprite-shadow-width: 54px;
+  --player-sprite-contrast: 1.08;
+  --player-sprite-saturation: 1.08;
+}
+
+.player.hasSprite.professionMiner {
+  --player-sprite-width: 88px;
+  --player-sprite-height: 126px;
+  --player-sprite-bottom: -3px;
+  --player-sprite-shadow-width: 72px;
+  --player-sprite-contrast: 1.04;
+  --player-sprite-saturation: 1.02;
+}
+
+.player.hasSprite.professionWarden {
+  --player-sprite-width: 80px;
+  --player-sprite-height: 134px;
+  --player-sprite-shadow-width: 64px;
+  --player-sprite-contrast: 1.1;
+  --player-sprite-saturation: 1.08;
+}
+
+.player.hasSprite.professionArtisan {
+  --player-sprite-width: 88px;
+  --player-sprite-height: 128px;
+  --player-sprite-bottom: -2px;
+  --player-sprite-shadow-width: 74px;
+  --player-sprite-contrast: 1.06;
+  --player-sprite-saturation: 1.04;
+}
+
+.player.hasSprite.professionEnchanter {
+  --player-sprite-width: 72px;
+  --player-sprite-height: 140px;
+  --player-sprite-bottom: 3px;
+  --player-sprite-shadow-width: 52px;
+  --player-sprite-contrast: 1.09;
+  --player-sprite-saturation: 1.1;
+}
+
+.player.hasSprite.professionTactician {
+  --player-sprite-width: 82px;
+  --player-sprite-height: 134px;
+  --player-sprite-bottom: 1px;
+  --player-sprite-shadow-width: 66px;
+  --player-sprite-contrast: 1.06;
+  --player-sprite-saturation: 1.07;
 }
 
 .player span {
@@ -737,18 +797,21 @@
 
 .player.hasSprite .playerSprite {
   position: absolute;
-  bottom: 0;
+  bottom: var(--player-sprite-bottom);
   left: 50%;
   display: block;
-  width: 78px;
-  height: 132px;
+  width: var(--player-sprite-width);
+  height: var(--player-sprite-height);
   border-radius: 0;
   background-color: transparent;
   background-image: var(--player-sprite-image);
   background-repeat: no-repeat;
   background-position: var(--player-sprite-position) center;
   background-size: 500% 100%;
-  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3));
+  filter:
+    drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3))
+    saturate(var(--player-sprite-saturation))
+    contrast(var(--player-sprite-contrast));
   transform: translateX(-50%) scaleX(var(--player-face-sign));
   transform-origin: 50% 86%;
   will-change: transform, filter;
@@ -770,14 +833,18 @@
   animation: playerSpriteAttack 190ms cubic-bezier(0.2, 0.92, 0.24, 1) both;
   filter:
     drop-shadow(0 0 10px rgba(255, 242, 212, 0.48))
-    drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3));
+    drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3))
+    saturate(var(--player-sprite-saturation))
+    contrast(var(--player-sprite-contrast));
 }
 
 .player.hasSprite.isPrecise.isAttacking .playerSprite {
   animation-duration: 220ms;
   filter:
     drop-shadow(0 0 14px rgba(255, 242, 212, 0.72))
-    drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3));
+    drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3))
+    saturate(var(--player-sprite-saturation))
+    contrast(var(--player-sprite-contrast));
 }
 
 .player.hasSprite .playerSprite::before {
@@ -785,7 +852,7 @@
   bottom: 3px;
   left: 50%;
   z-index: -1;
-  width: 62px;
+  width: var(--player-sprite-shadow-width);
   height: 14px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.24);
@@ -796,8 +863,12 @@
 .player.hasSprite .playerSprite::after {
   position: absolute;
   inset: 0;
+  width: auto;
+  height: auto;
+  right: auto;
   z-index: -1;
   display: block;
+  border-radius: 0;
   background: inherit;
   background-position: inherit;
   background-size: inherit;
@@ -1586,16 +1657,44 @@
   }
 
   .player.hasSprite {
-    width: 76px;
-    height: 122px;
+    --player-sprite-width: 72px;
+    --player-sprite-height: 122px;
+    --player-sprite-shadow-width: 56px;
   }
 
-  .player.hasSprite .playerSprite {
-    width: 72px;
-    height: 122px;
+  .player.hasSprite.professionPathfinder {
+    --player-sprite-width: 66px;
+    --player-sprite-height: 126px;
+    --player-sprite-shadow-width: 50px;
   }
 
-  .player.hasSprite .playerSprite::before {
-    width: 56px;
+  .player.hasSprite.professionMiner {
+    --player-sprite-width: 80px;
+    --player-sprite-height: 116px;
+    --player-sprite-shadow-width: 66px;
+  }
+
+  .player.hasSprite.professionWarden {
+    --player-sprite-width: 74px;
+    --player-sprite-height: 124px;
+    --player-sprite-shadow-width: 58px;
+  }
+
+  .player.hasSprite.professionArtisan {
+    --player-sprite-width: 80px;
+    --player-sprite-height: 118px;
+    --player-sprite-shadow-width: 68px;
+  }
+
+  .player.hasSprite.professionEnchanter {
+    --player-sprite-width: 66px;
+    --player-sprite-height: 129px;
+    --player-sprite-shadow-width: 48px;
+  }
+
+  .player.hasSprite.professionTactician {
+    --player-sprite-width: 76px;
+    --player-sprite-height: 124px;
+    --player-sprite-shadow-width: 60px;
   }
 }
