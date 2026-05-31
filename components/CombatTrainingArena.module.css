@@ -794,7 +794,22 @@
 }
 
 .player.hasSprite .playerSprite::after {
-  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  background: inherit;
+  background-position: inherit;
+  background-size: inherit;
+  content: "";
+  opacity: 0;
+  filter: blur(1px) brightness(1.2);
+  transform: translateX(0);
+  transform-origin: 50% 86%;
+}
+
+.player.hasSprite.isAttacking .playerSprite::after {
+  animation: playerSpriteSmear 190ms cubic-bezier(0.2, 0.92, 0.24, 1) both;
 }
 
 .player:not(.hasSprite).isMoving span {
@@ -1151,21 +1166,26 @@
 
 @keyframes playerSpriteAttack {
   0% {
-    transform: translateX(-50%) translate(0, 0) scaleX(var(--player-face-sign)) rotate(0deg);
+    transform: translateX(-50%) translate(0, 0) scaleX(var(--player-face-sign)) rotate(0deg) skew(0deg, 0deg);
   }
 
-  32% {
-    transform: translateX(-50%) translate(var(--player-attack-pull-x), var(--player-attack-pull-y)) scaleX(var(--player-face-sign))
-      rotate(var(--player-attack-windup-rotate));
+  24% {
+    transform: translateX(-50%) translate(var(--player-attack-pull-x), calc(var(--player-attack-pull-y) - 6px)) scaleX(var(--player-face-sign))
+      rotate(var(--player-attack-windup-rotate)) skew(-4deg, 0deg);
+  }
+
+  46% {
+    transform: translateX(-50%) translate(calc(var(--player-attack-pull-x) * 0.65), calc(var(--player-attack-pull-y) - 14px))
+      scaleX(var(--player-face-sign)) scaleY(0.94) rotate(calc(var(--player-attack-windup-rotate) * 1.4)) skew(-7deg, 0deg);
   }
 
   68% {
     transform: translateX(-50%) translate(var(--player-attack-strike-x), var(--player-attack-strike-y)) scaleX(var(--player-face-sign))
-      rotate(var(--player-attack-strike-rotate));
+      scaleY(1.04) rotate(var(--player-attack-strike-rotate)) skew(6deg, 0deg);
   }
 
   100% {
-    transform: translateX(-50%) translate(0, 0) scaleX(var(--player-face-sign)) rotate(0deg);
+    transform: translateX(-50%) translate(0, 0) scaleX(var(--player-face-sign)) rotate(0deg) skew(0deg, 0deg);
   }
 }
 
@@ -1184,6 +1204,28 @@
   100% {
     opacity: 1;
     transform: translateX(-50%) translate(0, 0) scaleX(var(--player-face-sign)) rotate(0deg);
+  }
+}
+
+@keyframes playerSpriteSmear {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scaleX(1);
+  }
+
+  38% {
+    opacity: 0.34;
+    transform: translate(calc(var(--player-attack-pull-x) * -0.34), calc(var(--player-attack-pull-y) * -0.2 - 8px)) scaleX(0.98);
+  }
+
+  70% {
+    opacity: 0.22;
+    transform: translate(calc(var(--player-attack-strike-x) * -0.45), calc(var(--player-attack-strike-y) * -0.35)) scaleX(1.06);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scaleX(1);
   }
 }
 

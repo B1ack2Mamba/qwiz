@@ -17,11 +17,11 @@ const characterSpriteSheets: Partial<Record<ProfessionId, string>> = {
 };
 
 const characterSpriteLabels: Partial<Record<ProfessionId, string>> = {
-  pathfinder: "ESSEN pathfinder character with evolving route cutter",
-  miner: "ESSEN miner character with evolving pickaxe",
+  pathfinder: "ESSEN assassin pathfinder character with evolving route blades",
+  miner: "ESSEN dwarf miner character with evolving pickaxe",
   warden: "ESSEN hunter character with evolving blade",
-  artisan: "ESSEN artisan character with evolving shield",
-  enchanter: "ESSEN enchanter character with evolving staff",
+  artisan: "ESSEN dwarf artisan character with evolving shield",
+  enchanter: "ESSEN female buffer character with evolving staff",
   tactician: "ESSEN tactician character with evolving banner",
 };
 
