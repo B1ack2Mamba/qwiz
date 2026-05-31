@@ -41,26 +41,69 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const { data, error } = await supabase.rpc("qwiz_record_attempt", {
-    p_employee_id: body.employeeId,
-    p_quiz_id: body.quizId,
-    p_date_key: body.dateKey,
-    p_score: body.score,
-    p_correct_count: body.correct,
-    p_accuracy: body.accuracy,
-    p_answers: body.answers,
-    p_streak_after: body.streakAfter,
-  });
+  const { data: attempt, error: attemptError } = await supabase
+    .from("qwiz_daily_attempts")
+    .insert({
+      employee_id: body.employeeId,
+      quiz_id: body.quizId,
+      date_key: body.dateKey,
+      score: body.score,
+      correct_count: body.correct,
+      accuracy: body.accuracy,
+      answers: body.answers,
+      streak_after: body.streakAfter,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    if (error.code === "23505") {
+  if (attemptError) {
+    if (attemptError.code === "23505") {
       res.status(200).json({ synced: false, duplicate: true });
       return;
     }
 
-    res.status(500).json({ error: "supabase_error", detail: error.message });
+    res.status(500).json({ error: "supabase_error", detail: attemptError.message });
     return;
   }
 
-  res.status(200).json({ synced: true, attemptId: data });
+  const { error: transactionError } = await supabase.from("qwiz_point_transactions").insert({
+    employee_id: body.employeeId,
+    amount: body.score,
+    reason: "daily_quiz",
+    source_type: "qwiz_daily_attempt",
+    source_id: attempt.id,
+  });
+
+  if (transactionError) {
+    res.status(500).json({ error: "supabase_error", detail: transactionError.message });
+    return;
+  }
+
+  const { data: employee, error: employeeError } = await supabase
+    .from("qwiz_employees")
+    .select("total_points, weekly_points")
+    .eq("id", body.employeeId)
+    .single();
+
+  if (employeeError) {
+    res.status(500).json({ error: "supabase_error", detail: employeeError.message });
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("qwiz_employees")
+    .update({
+      total_points: employee.total_points + body.score,
+      weekly_points: employee.weekly_points + body.score,
+      streak: body.streakAfter,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", body.employeeId);
+
+  if (updateError) {
+    res.status(500).json({ error: "supabase_error", detail: updateError.message });
+    return;
+  }
+
+  res.status(200).json({ synced: true, attemptId: attempt.id });
 }

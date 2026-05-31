@@ -250,3 +250,15 @@ using (true);
 
 grant execute on function public.qwiz_record_attempt(text, text, date, integer, integer, integer, jsonb, integer) to service_role;
 grant select on public.qwiz_weekly_leaderboard to authenticated;
+
+grant usage on schema public to anon, authenticated, service_role;
+grant all privileges on table
+  public.qwiz_employees,
+  public.qwiz_quizzes,
+  public.qwiz_questions,
+  public.qwiz_daily_attempts,
+  public.qwiz_point_transactions,
+  public.qwiz_prizes,
+  public.qwiz_weekly_awards
+to service_role;
+grant all privileges on all sequences in schema public to service_role;

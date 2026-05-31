@@ -24,6 +24,12 @@ npm run dev
 2. Скопируйте `.env.example` в `.env.local`.
 3. Заполните `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` и `SUPABASE_SERVICE_ROLE_KEY`.
 4. Выполните SQL из `supabase/migrations/001_qwiz_schema.sql`.
+5. Проверьте подключение и залейте стартовые данные:
+
+```bash
+npm run check:supabase
+npm run seed:supabase
+```
 
 Если переменные Supabase не заданы, интерфейс продолжит работать как локальное демо через `localStorage`.
 
