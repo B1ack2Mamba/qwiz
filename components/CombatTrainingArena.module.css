@@ -114,6 +114,33 @@
   outline-offset: 2px;
 }
 
+.isCriticalHealth {
+  border-color: rgba(244, 139, 151, 0.56);
+  box-shadow:
+    inset 0 0 0 1px rgba(244, 139, 151, 0.18),
+    0 0 0 1px rgba(244, 139, 151, 0.12);
+}
+
+.isCriticalHealth::before {
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 42%, rgba(180, 35, 57, 0.2) 74%, rgba(180, 35, 57, 0.38)),
+    linear-gradient(90deg, rgba(23, 53, 47, 0.46), transparent 18%, transparent 82%, rgba(47, 111, 159, 0.3)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 34%, rgba(0, 0, 0, 0.1));
+  animation: arenaCriticalPulse 840ms ease-in-out infinite alternate;
+}
+
+.isCriticalHealth .healthTrack {
+  border-color: rgba(244, 139, 151, 0.7);
+  box-shadow:
+    0 0 14px rgba(244, 139, 151, 0.28),
+    inset 0 0 8px rgba(0, 0, 0, 0.24);
+}
+
+.isCriticalHealth .healthTrack i {
+  background: linear-gradient(90deg, #b42339, #f48b97, #fff2d4);
+  animation: healthCriticalPulse 620ms ease-in-out infinite alternate;
+}
+
 .gridOverlay {
   position: absolute;
   inset: 0;
@@ -1685,6 +1712,26 @@
   to {
     opacity: 0.94;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes arenaCriticalPulse {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes healthCriticalPulse {
+  from {
+    filter: saturate(1) brightness(1);
+  }
+
+  to {
+    filter: saturate(1.18) brightness(1.14);
   }
 }
 
