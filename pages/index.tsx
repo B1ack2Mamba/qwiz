@@ -15,6 +15,15 @@ import {
 const SELECTED_EMPLOYEE_KEY = "qwiz-selected-employee-id";
 const SESSION_TOKEN_KEY = "qwiz-session-token";
 
+type MobileSectionId = "daily-quiz" | "leaderboard" | "weekly-prizes" | "activity";
+
+const mobileSections: Array<{ id: MobileSectionId; label: string }> = [
+  { id: "daily-quiz", label: "Квиз" },
+  { id: "leaderboard", label: "Рейтинг" },
+  { id: "weekly-prizes", label: "Призы" },
+  { id: "activity", label: "Активность" },
+];
+
 type ToastState = {
   message: string;
   visible: boolean;
@@ -42,6 +51,7 @@ export default function HomePage() {
   const [loadError, setLoadError] = useState("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [currentAnswers, setCurrentAnswers] = useState<number[]>([]);
+  const [activeMobileSection, setActiveMobileSection] = useState<MobileSectionId>("daily-quiz");
   const [toast, setToast] = useState<ToastState>({ message: "", visible: false });
 
   const todayKey = useMemo(() => getTodayKey(), []);
@@ -138,6 +148,11 @@ export default function HomePage() {
   function resetQuizProgress() {
     setCurrentQuestionIndex(0);
     setCurrentAnswers([]);
+  }
+
+  function openMobileSection(sectionId: MobileSectionId) {
+    setActiveMobileSection(sectionId);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function login(event: FormEvent<HTMLFormElement>) {
@@ -340,12 +355,7 @@ export default function HomePage() {
         </div>
 
         <nav className="side-nav" aria-label="Разделы">
-          {[
-            ["daily-quiz", "День"],
-            ["leaderboard", "Рейтинг"],
-            ["weekly-prizes", "Призы"],
-            ["activity", "Активность"],
-          ].map(([id, label]) => (
+          {mobileSections.map(({ id, label }) => (
             <button
               className="nav-button"
               key={id}
@@ -404,7 +414,11 @@ export default function HomePage() {
         </section>
 
         <div className="workspace-grid">
-          <section id="daily-quiz" className="panel quiz-panel" aria-live="polite">
+          <section
+            id="daily-quiz"
+            className={`panel quiz-panel mobile-section${activeMobileSection === "daily-quiz" ? " is-active" : ""}`}
+            aria-live="polite"
+          >
             {loading ? (
               <div className="empty-state">Загружаем квиз.</div>
             ) : !quiz ? (
@@ -423,7 +437,13 @@ export default function HomePage() {
             )}
           </section>
 
-          <section id="leaderboard" className="panel leaderboard-panel" aria-labelledby="leaderboard-title">
+          <section
+            id="leaderboard"
+            className={`panel leaderboard-panel mobile-section${
+              activeMobileSection === "leaderboard" ? " is-active" : ""
+            }`}
+            aria-labelledby="leaderboard-title"
+          >
             <div className="panel-heading">
               <div>
                 <span className="section-kicker">Текущая неделя</span>
@@ -466,7 +486,13 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section id="weekly-prizes" className="panel prize-panel" aria-labelledby="prize-title">
+          <section
+            id="weekly-prizes"
+            className={`panel prize-panel mobile-section${
+              activeMobileSection === "weekly-prizes" ? " is-active" : ""
+            }`}
+            aria-labelledby="prize-title"
+          >
             <div className="panel-heading">
               <div>
                 <span className="section-kicker">Бонусный фонд</span>
@@ -511,7 +537,11 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section id="activity" className="panel activity-panel" aria-labelledby="activity-title">
+          <section
+            id="activity"
+            className={`panel activity-panel mobile-section${activeMobileSection === "activity" ? " is-active" : ""}`}
+            aria-labelledby="activity-title"
+          >
             <div className="panel-heading">
               <div>
                 <span className="section-kicker">Сегодня</span>
@@ -540,6 +570,19 @@ export default function HomePage() {
           </section>
         </div>
       </main>
+
+      <nav className="mobile-tabbar" aria-label="Разделы приложения">
+        {mobileSections.map((section) => (
+          <button
+            className={`mobile-tab${activeMobileSection === section.id ? " is-active" : ""}`}
+            key={section.id}
+            onClick={() => openMobileSection(section.id)}
+            type="button"
+          >
+            {section.label}
+          </button>
+        ))}
+      </nav>
 
       <div className={`toast${toast.visible ? " is-visible" : ""}`} role="status" aria-live="polite">
         {toast.message}
