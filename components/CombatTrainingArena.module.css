@@ -895,6 +895,57 @@
   width: 78px;
 }
 
+.playerGuardAura {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  z-index: 3;
+  display: block;
+  width: calc(var(--player-sprite-width) + 24px);
+  height: calc(var(--player-sprite-height) - 4px);
+  border: 1px solid rgba(217, 242, 233, 0.72);
+  border-radius: 46% 46% 42% 42%;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(217, 242, 233, 0.18), transparent 62%),
+    linear-gradient(110deg, transparent 0 34%, rgba(255, 255, 255, 0.2) 38% 43%, transparent 48% 100%);
+  box-shadow:
+    0 0 18px rgba(217, 242, 233, 0.28),
+    inset 0 0 18px rgba(255, 255, 255, 0.08);
+  opacity: 0.78;
+  pointer-events: none;
+  transform: translateX(-50%) scaleX(var(--player-face-sign));
+  transform-origin: 50% 72%;
+  animation: playerGuardAuraPulse 520ms ease-in-out infinite alternate;
+}
+
+.playerGuardAura::before,
+.playerGuardAura::after {
+  position: absolute;
+  left: 50%;
+  width: 62%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 242, 212, 0.74), transparent);
+  content: "";
+  transform: translateX(-50%) rotate(-7deg);
+}
+
+.playerGuardAura::before {
+  top: 21%;
+}
+
+.playerGuardAura::after {
+  bottom: 19%;
+  transform: translateX(-50%) rotate(8deg);
+}
+
+.player:not(.hasSprite) .playerGuardAura {
+  top: -11px;
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+}
+
 .player.hasSprite.professionPathfinder {
   --player-sprite-width: 72px;
   --player-sprite-height: 137px;
@@ -1821,6 +1872,20 @@
   50% {
     opacity: 0.78;
     transform: translate(calc(-50% + var(--player-move-trail-x)), var(--player-move-trail-y)) scale(1.08, 0.96) rotate(3deg);
+  }
+}
+
+@keyframes playerGuardAuraPulse {
+  from {
+    opacity: 0.48;
+    filter: blur(0);
+    transform: translateX(-50%) scaleX(var(--player-face-sign)) scale(0.96, 0.98);
+  }
+
+  to {
+    opacity: 0.86;
+    filter: blur(0.3px);
+    transform: translateX(-50%) scaleX(var(--player-face-sign)) scale(1.04, 1.02);
   }
 }
 

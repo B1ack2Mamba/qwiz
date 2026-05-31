@@ -223,6 +223,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const abilityReady = combatState.timeMs >= combatState.player.abilityReadyAt;
   const dodgeReady = combatState.timeMs >= combatState.player.dodgeReadyAt && combatState.player.stamina >= combatState.player.dodgeCost;
   const hasPrecisionCounter = combatState.timeMs < combatState.player.precisionUntil;
+  const isPlayerProtected = combatState.timeMs < combatState.player.invulnerableUntil;
   const rankSummary = getCombatTrainingRank(combatState);
   const reward = getCombatTrainingReward(profile, combatState.wave, combatState.defeatedCount, rankSummary.rank);
   const rewardClaimed = claimedWaves.has(combatState.wave);
@@ -327,6 +328,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
           {isPlayerMoving && combatState.status === "fighting" && <b className={styles.playerMoveTrail} aria-hidden="true" />}
           {combatState.combo > 0 && <b className={styles.playerComboAura} aria-hidden="true" />}
           {spriteSheet && <b className={styles.playerStageAura} aria-hidden="true" />}
+          {isPlayerProtected && <b className={styles.playerGuardAura} aria-hidden="true" />}
           {spriteSheet ? (
             <span
               aria-label={getCharacterSpriteLabel(profile.professionId)}
