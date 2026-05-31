@@ -8,6 +8,11 @@ export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
+export type TrainingReward = {
+  xp: number;
+  resources: Partial<ResourceBag>;
+  battleContribution: number;
+};
 
 export type Profession = {
   id: ProfessionId;
@@ -63,6 +68,7 @@ export type GameProfile = {
   completedMissions: string[];
   completedDungeons: DungeonId[];
   battleContribution: number;
+  combatTrainingRewardsClaimed: number;
   log: string[];
   updatedAt: string;
 };
@@ -76,6 +82,7 @@ const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "w
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
 
 export const PROFESSION_SEASON_LENGTH_DAYS = 14;
+export const DAILY_COMBAT_TRAINING_REWARD_LIMIT = 3;
 export const professionChangeCost: Partial<ResourceBag> = {
   ore: 2,
   essence: 2,
@@ -302,6 +309,7 @@ export function createGameProfile(employeeId: string, dayKey: string): GameProfi
     completedMissions: [],
     completedDungeons: [],
     battleContribution: 0,
+    combatTrainingRewardsClaimed: 0,
     log: ["Герой принят в корпоративную лигу."],
     updatedAt: new Date().toISOString(),
   };
@@ -320,6 +328,7 @@ export function refreshDailyProfile(profile: GameProfile, dayKey: string) {
     energy: 4,
     completedMissions: [],
     completedDungeons: [],
+    combatTrainingRewardsClaimed: 0,
     log: [`Новый игровой день открыт: ${dayKey}.`, ...normalized.log].slice(0, 8),
   });
 }
@@ -494,6 +503,43 @@ export function contributeToBattle(profile: GameProfile) {
   return touch(next);
 }
 
+export function getCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number): TrainingReward {
+  const safeWave = Math.max(1, Math.floor(wave));
+  const safeDefeatedCount = Math.max(1, Math.floor(defeatedCount));
+  const battleContribution = (profile.professionId === "tactician" ? 5 : 3) + safeWave;
+
+  return {
+    xp: 18 + safeWave * 8 + safeDefeatedCount * 4,
+    resources: compactResources({
+      supplies: 1,
+      essence: safeWave >= 2 ? 1 : 0,
+      ore: safeDefeatedCount >= 4 ? 1 : 0,
+    }),
+    battleContribution,
+  };
+}
+
+export function canClaimCombatTrainingReward(profile: GameProfile) {
+  return profile.combatTrainingRewardsClaimed < DAILY_COMBAT_TRAINING_REWARD_LIMIT;
+}
+
+export function claimCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number) {
+  if (!canClaimCombatTrainingReward(profile)) {
+    return profile;
+  }
+
+  const reward = getCombatTrainingReward(profile, wave, defeatedCount);
+  const next = cloneProfile(profile);
+  next.combatTrainingRewardsClaimed += 1;
+  next.xp += reward.xp;
+  next.battleContribution += reward.battleContribution;
+  addRewards(next.resources, reward.resources);
+
+  applyLevelUps(next);
+  next.log.unshift(`Тренировочная волна ${Math.max(1, Math.floor(wave))} зачищена.`);
+  return touch(next);
+}
+
 export function changeProfession(profile: GameProfile, professionId: ProfessionId) {
   const mode = getProfessionChangeMode(profile, professionId);
   if (mode === "selected" || mode === "blocked") {
@@ -549,6 +595,7 @@ function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile
     completedMissions: Array.isArray(legacy.completedMissions) ? legacy.completedMissions.slice() : [],
     completedDungeons: normalizeDungeonIds(legacy.completedDungeons || legacy.defeatedMobs),
     battleContribution: Math.max(0, Math.floor(Number(legacy.battleContribution || 0))),
+    combatTrainingRewardsClaimed: Math.max(0, Math.floor(Number(legacy.combatTrainingRewardsClaimed || 0))),
     log: Array.isArray(legacy.log) && legacy.log.length > 0 ? legacy.log.slice(0, 8) : ["Герой принят в корпоративную лигу."],
     updatedAt: legacy.updatedAt || new Date().toISOString(),
   };

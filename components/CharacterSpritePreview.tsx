@@ -25,8 +25,21 @@ const characterSpriteLabels: Partial<Record<ProfessionId, string>> = {
   tactician: "ESSEN tactician character with evolving banner",
 };
 
+export function getCharacterSpriteSheet(professionId: ProfessionId) {
+  return characterSpriteSheets[professionId] || null;
+}
+
+export function getCharacterSpriteLabel(professionId: ProfessionId) {
+  return characterSpriteLabels[professionId] || "ESSEN profession character";
+}
+
+export function getCharacterSpritePosition(weaponLevel: number) {
+  const tier = Math.max(0, Math.min(4, Math.floor(weaponLevel)));
+  return `${tier * 25}%`;
+}
+
 export function hasCharacterSprite(professionId: ProfessionId) {
-  return Boolean(characterSpriteSheets[professionId]);
+  return Boolean(getCharacterSpriteSheet(professionId));
 }
 
 export function CharacterSpritePreview({ professionId, selected = false, weaponLevel = 0 }: CharacterSpritePreviewProps) {
@@ -36,15 +49,14 @@ export function CharacterSpritePreview({ professionId, selected = false, weaponL
     return null;
   }
 
-  const tier = Math.max(0, Math.min(4, Math.floor(weaponLevel)));
   const style = {
     "--character-sprite-image": `url("${spriteSheet}")`,
-    "--character-sprite-position": `${tier * 25}%`,
+    "--character-sprite-position": getCharacterSpritePosition(weaponLevel),
   } as CSSProperties;
 
   return (
     <span
-      aria-label={characterSpriteLabels[professionId]}
+      aria-label={getCharacterSpriteLabel(professionId)}
       className={`character-sprite-preview${selected ? " is-selected" : ""}`}
       role="img"
       style={style}

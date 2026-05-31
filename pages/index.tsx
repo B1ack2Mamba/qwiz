@@ -6,6 +6,7 @@ import {
   getWeaponStageLabel,
   professionWeaponEnhancement,
 } from "../components/ProfessionAvatar3D";
+import { CombatTrainingArena } from "../components/CombatTrainingArena";
 import { CharacterSpritePreview, hasCharacterSprite } from "../components/CharacterSpritePreview";
 import {
   AppState,
@@ -25,6 +26,7 @@ import {
   canEnterDungeon,
   canForgeEnhancement,
   changeProfession,
+  claimCombatTrainingReward,
   completeMission,
   contributeToBattle,
   createGameProfile,
@@ -310,6 +312,21 @@ export default function HomePage() {
 
     const nextProfile = contributeToBattle(profile);
     updateProfile(nextProfile, nextProfile === profile ? "Нужны провиант и эфир." : "Вклад в битву внесен.");
+  }
+
+  function runCombatTrainingReward(wave: number, defeatedCount: number) {
+    if (!profile) {
+      return;
+    }
+
+    const previousClaims = profile.combatTrainingRewardsClaimed;
+    const nextProfile = claimCombatTrainingReward(profile, wave, defeatedCount);
+    updateProfile(
+      nextProfile,
+      nextProfile.combatTrainingRewardsClaimed > previousClaims
+        ? `Награда за тренировочную волну ${wave} получена.`
+        : "Лимит наград за тренировки на сегодня исчерпан.",
+    );
   }
 
   function runProfessionChange(professionId: ProfessionId) {
@@ -612,6 +629,12 @@ export default function HomePage() {
               </button>
               <span>Требуется: 1 провиант и 1 эфир</span>
             </div>
+            <CombatTrainingArena
+              heroPower={heroPower}
+              key={`${profile.employeeId}:${profile.professionId}:${profile.level}:${heroPower}:${Object.values(profile.enhancements).join(".")}`}
+              onClaimReward={runCombatTrainingReward}
+              profile={profile}
+            />
             <div className="team-list">
               {rankedEmployees.slice(0, 6).map((employee, index) => (
                 <div className="team-row" key={employee.id}>
