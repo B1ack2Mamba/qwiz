@@ -1,5 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ProfessionAvatar3D } from "../components/ProfessionAvatar3D";
+import {
+  ProfessionAvatar3D,
+  WeaponPreview3D,
+  enhancementWeaponNames,
+  getWeaponStageLabel,
+  professionWeaponEnhancement,
+} from "../components/ProfessionAvatar3D";
 import {
   AppState,
   createInitialState,
@@ -478,6 +484,7 @@ export default function HomePage() {
             <div className="profession-grid">
               {professions.map((item) => {
                 const mode = getProfessionChangeMode(profile, item.id);
+                const weaponLevel = profile.enhancements[professionWeaponEnhancement[item.id]] || 0;
                 return (
                   <button
                     className={`profession-card${profile.professionId === item.id ? " is-selected" : ""}`}
@@ -485,12 +492,19 @@ export default function HomePage() {
                     onClick={() => runProfessionChange(item.id)}
                     type="button"
                   >
-                    <ProfessionAvatar3D professionId={item.id} selected={profile.professionId === item.id} />
+                    <ProfessionAvatar3D
+                      professionId={item.id}
+                      selected={profile.professionId === item.id}
+                      weaponLevel={weaponLevel}
+                    />
                     <span>
                       <strong>{item.name}</strong>
                       <span>{item.function}</span>
                     </span>
                     <small>{item.bonus}</small>
+                    <small className="profession-weapon-note">
+                      {enhancementWeaponNames[professionWeaponEnhancement[item.id]]}: {getWeaponStageLabel(weaponLevel)}
+                    </small>
                     <small className={`profession-change-note is-${mode}`}>{getProfessionChangeLabel(mode)}</small>
                   </button>
                 );
@@ -702,6 +716,14 @@ function EnhancementCard({
 
   return (
     <article className="enhancement-card">
+      <div className="enhancement-preview-row">
+        <WeaponPreview3D enhancementId={enhancement.id} level={stacks} />
+        <div>
+          <span className="section-kicker">Вид оружия</span>
+          <strong>{enhancementWeaponNames[enhancement.id]}</strong>
+          <span>{getWeaponStageLabel(stacks)}</span>
+        </div>
+      </div>
       <div className="enhancement-head">
         <span className="enhancement-orb" aria-hidden="true">
           {enhancement.crest}

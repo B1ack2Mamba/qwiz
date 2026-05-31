@@ -1055,7 +1055,7 @@ button {
 
 .profession-avatar-3d {
   display: block;
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 4;
   width: 100%;
   max-width: 148px;
   aspect-ratio: 1;
@@ -1067,6 +1067,15 @@ button {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.profession-weapon-note {
+  min-height: 26px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef7fb;
+  color: #2f6f9f;
+  justify-self: start;
 }
 
 .profession-change-note {
@@ -1208,6 +1217,50 @@ button {
 
 .enhancement-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.enhancement-preview-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+}
+
+.enhancement-preview-row strong,
+.enhancement-preview-row span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.enhancement-preview-row strong {
+  margin-top: 3px;
+  font-size: 16px;
+}
+
+.enhancement-preview-row > div > span:not(.section-kicker) {
+  margin-top: 5px;
+  color: #2f6f9f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.weapon-preview-3d {
+  display: block;
+  width: 92px;
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+
+.weapon-preview-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .enhancement-head {
@@ -1555,6 +1608,18 @@ button {
   .resource-grid,
   .enhancement-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .enhancement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .enhancement-preview-row {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .weapon-preview-3d {
+    width: 82px;
   }
 
   .mission-grid {
