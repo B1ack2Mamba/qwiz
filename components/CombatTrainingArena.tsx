@@ -628,6 +628,56 @@ function attackSlashStyle(state: CombatState): CSSProperties {
   } as CSSProperties;
 }
 
+const abilityAuraTones: Record<string, { color: string; core: string; ring: string; soft: string }> = {
+  "blade-fan": {
+    color: "rgba(255, 196, 87, 0.62)",
+    core: "rgba(255, 242, 212, 0.5)",
+    ring: "rgba(255, 196, 87, 0.34)",
+    soft: "rgba(255, 196, 87, 0.14)",
+  },
+  "ether-chain": {
+    color: "rgba(142, 199, 238, 0.66)",
+    core: "rgba(255, 255, 255, 0.48)",
+    ring: "rgba(142, 199, 238, 0.34)",
+    soft: "rgba(142, 199, 238, 0.14)",
+  },
+  "guard-pulse": {
+    color: "rgba(217, 242, 233, 0.62)",
+    core: "rgba(255, 255, 255, 0.46)",
+    ring: "rgba(217, 242, 233, 0.32)",
+    soft: "rgba(217, 242, 233, 0.14)",
+  },
+  "ore-breaker": {
+    color: "rgba(255, 242, 212, 0.58)",
+    core: "rgba(255, 255, 255, 0.4)",
+    ring: "rgba(255, 242, 212, 0.28)",
+    soft: "rgba(255, 242, 212, 0.12)",
+  },
+  "rally-command": {
+    color: "rgba(244, 139, 151, 0.54)",
+    core: "rgba(255, 242, 212, 0.44)",
+    ring: "rgba(244, 139, 151, 0.3)",
+    soft: "rgba(244, 139, 151, 0.13)",
+  },
+  "route-dash": {
+    color: "rgba(217, 242, 233, 0.58)",
+    core: "rgba(142, 199, 238, 0.42)",
+    ring: "rgba(217, 242, 233, 0.3)",
+    soft: "rgba(217, 242, 233, 0.12)",
+  },
+};
+
+function abilityAuraStyle(abilityId: string): CSSProperties {
+  const tone = abilityAuraTones[abilityId] || abilityAuraTones["guard-pulse"];
+
+  return {
+    "--combat-ability-color": tone.color,
+    "--combat-ability-core": tone.core,
+    "--combat-ability-ring": tone.ring,
+    "--combat-ability-soft": tone.soft,
+  } as CSSProperties;
+}
+
 function abilityPulseStyle(state: CombatState): CSSProperties {
   const visible = state.timeMs <= state.player.abilityUntil && state.status === "fighting";
   const radiusByAbility: Record<string, number> = {
@@ -641,6 +691,7 @@ function abilityPulseStyle(state: CombatState): CSSProperties {
   const size = radiusByAbility[state.player.ability.id] || 260;
 
   return {
+    ...abilityAuraStyle(state.player.ability.id),
     left: `${(state.player.position.x / ARENA_WIDTH) * 100}%`,
     top: `${(state.player.position.y / ARENA_HEIGHT) * 100}%`,
     width: `${(size / ARENA_WIDTH) * 100}%`,
@@ -753,6 +804,7 @@ function playerArenaStyle(state: CombatState, professionId: GameProfile["profess
   return {
     ...positionStyle(state.player.position),
     ...playerStageAuraStyle(weaponLevel),
+    ...abilityAuraStyle(state.player.ability.id),
     "--player-attack-pull-x": `${attackPullX}px`,
     "--player-attack-pull-y": `${attackPullY}px`,
     "--player-attack-strike-x": `${attackStrikeX}px`,
@@ -792,10 +844,13 @@ function playerClass(state: CombatState, hasSprite: boolean, isMoving: boolean, 
   const isDodging = state.timeMs < state.player.dodgeUntil;
   const isPrecise = state.timeMs < state.player.precisionUntil;
   const isAttacking = state.timeMs < state.player.attackUntil;
+  const isCasting = state.timeMs < state.player.abilityUntil;
   const professionClass = hasSprite ? playerProfessionClass[professionId] || "" : "";
   return `${styles.player}${hasSprite ? ` ${styles.hasSprite}` : ""}${professionClass ? ` ${professionClass}` : ""}${isProtected ? ` ${styles.isProtected}` : ""}${
     isDodging ? ` ${styles.isDodging}` : ""
-  }${isPrecise ? ` ${styles.isPrecise}` : ""}${isAttacking ? ` ${styles.isAttacking}` : ""}${isMoving ? ` ${styles.isMoving}` : ""}`;
+  }${isPrecise ? ` ${styles.isPrecise}` : ""}${isAttacking ? ` ${styles.isAttacking}` : ""}${isCasting ? ` ${styles.isCasting}` : ""}${
+    isMoving ? ` ${styles.isMoving}` : ""
+  }`;
 }
 
 function enemyClass(enemy: CombatEnemy, isDown: boolean, isHit: boolean, isStunned: boolean, isCharging: boolean) {

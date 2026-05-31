@@ -571,14 +571,48 @@
 }
 
 .abilityPulse {
+  --combat-ability-color: rgba(217, 242, 233, 0.58);
+  --combat-ability-core: rgba(255, 255, 255, 0.42);
+  --combat-ability-ring: rgba(217, 242, 233, 0.3);
+  --combat-ability-soft: rgba(217, 242, 233, 0.12);
+
   position: absolute;
   z-index: 2;
-  border: 1px solid rgba(217, 242, 233, 0.58);
+  border: 1px solid var(--combat-ability-ring);
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(217, 242, 233, 0.38), rgba(217, 242, 233, 0));
+  background:
+    radial-gradient(circle, var(--combat-ability-core), var(--combat-ability-soft) 48%, transparent 72%),
+    conic-gradient(from 0.12turn, transparent, var(--combat-ability-color), transparent 42%, var(--combat-ability-ring), transparent 78%);
+  box-shadow:
+    0 0 20px var(--combat-ability-ring),
+    inset 0 0 22px var(--combat-ability-soft);
   pointer-events: none;
   transform: translate(-50%, -50%);
   transition: opacity 120ms ease;
+}
+
+.abilityPulse::before,
+.abilityPulse::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.abilityPulse::before {
+  inset: 17%;
+  border: 1px dashed var(--combat-ability-ring);
+  border-radius: inherit;
+}
+
+.abilityPulse::after {
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--combat-ability-core);
+  box-shadow: 0 0 14px var(--combat-ability-color);
+  transform: translate(-50%, -50%);
 }
 
 .enemyTelegraph {
@@ -705,6 +739,14 @@
   --player-attack-strike-skew: 6deg;
   --player-attack-windup-lift: -6px;
   --player-attack-windup-skew: -4deg;
+  --combat-ability-color: rgba(217, 242, 233, 0.58);
+  --combat-ability-core: rgba(255, 255, 255, 0.42);
+  --combat-ability-ring: rgba(217, 242, 233, 0.3);
+  --combat-ability-soft: rgba(217, 242, 233, 0.12);
+  --player-cast-duration: 440ms;
+  --player-cast-lift: -12px;
+  --player-cast-scale-y: 1.04;
+  --player-cast-tilt: 3deg;
   --player-dodge-x: 22px;
   --player-dodge-y: 0px;
   --player-dodge-duration: 260ms;
@@ -783,6 +825,10 @@
   --player-attack-windup-lift: -8px;
   --player-attack-windup-skew: -2deg;
   --player-dodge-duration: 230ms;
+  --player-cast-duration: 360ms;
+  --player-cast-lift: -14px;
+  --player-cast-scale-y: 1.05;
+  --player-cast-tilt: 4deg;
   --player-idle-bob: -3px;
   --player-idle-duration: 1320ms;
   --player-move-hop: -6px;
@@ -805,6 +851,10 @@
   --player-attack-windup-lift: -3px;
   --player-attack-windup-skew: -2deg;
   --player-dodge-duration: 300ms;
+  --player-cast-duration: 520ms;
+  --player-cast-lift: -7px;
+  --player-cast-scale-y: 1.02;
+  --player-cast-tilt: 1deg;
   --player-idle-bob: -1px;
   --player-idle-duration: 1720ms;
   --player-move-drop: 3px;
@@ -824,6 +874,10 @@
   --player-attack-strike-scale-y: 1.06;
   --player-attack-strike-skew: 7deg;
   --player-attack-windup-lift: -7px;
+  --player-cast-duration: 400ms;
+  --player-cast-lift: -11px;
+  --player-cast-scale-y: 1.04;
+  --player-cast-tilt: 2deg;
   --player-idle-duration: 1440ms;
   --player-move-hop: -5px;
   --player-walk-duration: 410ms;
@@ -842,6 +896,10 @@
   --player-attack-strike-scale-y: 1.03;
   --player-attack-windup-lift: -4px;
   --player-dodge-duration: 285ms;
+  --player-cast-duration: 500ms;
+  --player-cast-lift: -8px;
+  --player-cast-scale-y: 1.03;
+  --player-cast-tilt: 1deg;
   --player-idle-bob: -1px;
   --player-idle-duration: 1650ms;
   --player-move-drop: 3px;
@@ -864,6 +922,10 @@
   --player-attack-windup-lift: -12px;
   --player-attack-windup-skew: -2deg;
   --player-dodge-opacity: 0.62;
+  --player-cast-duration: 620ms;
+  --player-cast-lift: -18px;
+  --player-cast-scale-y: 1.07;
+  --player-cast-tilt: -2deg;
   --player-idle-bob: -5px;
   --player-idle-duration: 1850ms;
   --player-move-hop: -4px;
@@ -885,6 +947,10 @@
   --player-attack-strike-scale-y: 1.05;
   --player-attack-strike-skew: 5deg;
   --player-attack-windup-lift: -5px;
+  --player-cast-duration: 470ms;
+  --player-cast-lift: -10px;
+  --player-cast-scale-y: 1.04;
+  --player-cast-tilt: 2deg;
   --player-idle-duration: 1580ms;
   --player-move-hop: -4px;
   --player-walk-duration: 455ms;
@@ -943,6 +1009,27 @@
 
 .player.hasSprite.isDodging .playerSprite {
   animation: playerSpriteDodge var(--player-dodge-duration) cubic-bezier(0.17, 0.9, 0.22, 1) both;
+}
+
+.player.hasSprite.isCasting:not(.isAttacking):not(.isDodging) .playerSprite {
+  animation: playerSpriteCast var(--player-cast-duration) ease-in-out both;
+  filter:
+    drop-shadow(0 0 12px var(--combat-ability-color))
+    drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3))
+    saturate(calc(var(--player-sprite-saturation) + 0.08))
+    contrast(var(--player-sprite-contrast));
+}
+
+.player.hasSprite.isCasting .playerStageAura {
+  border-color: var(--combat-ability-ring);
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--combat-ability-core), transparent 36%),
+    radial-gradient(ellipse at 50% 50%, var(--combat-ability-color), transparent 72%);
+  box-shadow:
+    0 0 22px var(--combat-ability-ring),
+    inset 0 0 16px var(--combat-ability-soft);
+  opacity: 0.5;
+  animation: playerCastAura var(--player-cast-duration) ease-in-out both;
 }
 
 .player.hasSprite.isAttacking .playerSprite {
@@ -1005,6 +1092,10 @@
 
 .player:not(.hasSprite).isAttacking span {
   animation: playerMarkerAttack 190ms cubic-bezier(0.2, 0.92, 0.24, 1) both;
+}
+
+.player:not(.hasSprite).isCasting span {
+  animation: playerMarkerCast 440ms ease-in-out both;
 }
 
 .isProtected {
@@ -1396,6 +1487,23 @@
   }
 }
 
+@keyframes playerSpriteCast {
+  0%,
+  100% {
+    transform: translateX(-50%) translate(0, 0) scaleX(var(--player-face-sign)) rotate(0deg) scaleY(1);
+  }
+
+  36% {
+    transform: translateX(-50%) translate(calc(var(--player-step-back-x) * 0.42), var(--player-cast-lift)) scaleX(var(--player-face-sign))
+      rotate(calc(var(--player-cast-tilt) * -1)) scaleY(0.98);
+  }
+
+  68% {
+    transform: translateX(-50%) translate(calc(var(--player-step-x) * 0.46), calc(var(--player-cast-lift) * 0.44)) scaleX(var(--player-face-sign))
+      rotate(var(--player-cast-tilt)) scaleY(var(--player-cast-scale-y));
+  }
+}
+
 @keyframes playerSpriteSmear {
   0% {
     opacity: 0;
@@ -1432,6 +1540,19 @@
   }
 }
 
+@keyframes playerCastAura {
+  0%,
+  100% {
+    filter: blur(0);
+    transform: translateX(-50%) rotate(-3deg) scale(0.92);
+  }
+
+  54% {
+    filter: blur(0.8px);
+    transform: translateX(-50%) rotate(-3deg) scale(1.22);
+  }
+}
+
 @keyframes playerMarkerWalk {
   0%,
   100% {
@@ -1458,6 +1579,17 @@
 
   100% {
     transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes playerMarkerCast {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-6px) scale(1.08);
   }
 }
 
