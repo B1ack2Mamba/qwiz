@@ -372,6 +372,9 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
               <i />
               <i />
               <i />
+              <span className={`${styles.hitImpactLabel} ${enemy.hp <= 0 ? styles.isDefeatLabel : ""}`}>
+                {enemy.hp <= 0 ? "BREAK" : "HIT"}
+              </span>
             </div>
           ) : null,
         )}

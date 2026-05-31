@@ -1297,6 +1297,35 @@
   transform: rotate(265deg);
 }
 
+.hitImpactLabel {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  z-index: 2;
+  min-width: 36px;
+  padding: 3px 7px;
+  border: 1px solid var(--impact-color);
+  border-radius: 999px;
+  background: rgba(12, 23, 25, 0.68);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  color: #fff2d4;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  transform: translate(-50%, calc(var(--hit-progress) * -10px));
+}
+
+.isDefeatLabel {
+  background: rgba(255, 242, 212, 0.92);
+  box-shadow:
+    0 0 14px var(--impact-soft),
+    0 5px 10px rgba(0, 0, 0, 0.18);
+  color: #17352f;
+}
+
 .hitImpactSlash {
   --impact-color: rgba(255, 196, 87, 0.95);
   --impact-soft: rgba(255, 196, 87, 0.22);
