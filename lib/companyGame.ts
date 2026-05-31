@@ -5,6 +5,7 @@ export type ResourceId = "ore" | "essence" | "schematics" | "supplies";
 export type EnhancementId = "strike" | "guard" | "route" | "spark" | "workbench" | "banner";
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
+export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
@@ -12,6 +13,7 @@ export type TrainingReward = {
   xp: number;
   resources: Partial<ResourceBag>;
   battleContribution: number;
+  rankBonusPercent: number;
 };
 
 export type Profession = {
@@ -503,19 +505,22 @@ export function contributeToBattle(profile: GameProfile) {
   return touch(next);
 }
 
-export function getCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number): TrainingReward {
+export function getCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number, rank: CombatTrainingRewardRank = "C"): TrainingReward {
   const safeWave = Math.max(1, Math.floor(wave));
   const safeDefeatedCount = Math.max(1, Math.floor(defeatedCount));
-  const battleContribution = (profile.professionId === "tactician" ? 5 : 3) + safeWave;
+  const rankBonusPercent = getCombatTrainingRankBonus(rank);
+  const battleContribution = scaleRankReward((profile.professionId === "tactician" ? 5 : 3) + safeWave, rankBonusPercent);
+  const resources = compactResources({
+    supplies: 1 + (rank === "S" || rank === "A" ? 1 : 0),
+    essence: (safeWave >= 2 ? 1 : 0) + (rank === "S" ? 1 : 0),
+    ore: (safeDefeatedCount >= 4 ? 1 : 0) + (rank === "S" && safeWave >= 3 ? 1 : 0),
+  });
 
   return {
-    xp: 18 + safeWave * 8 + safeDefeatedCount * 4,
-    resources: compactResources({
-      supplies: 1,
-      essence: safeWave >= 2 ? 1 : 0,
-      ore: safeDefeatedCount >= 4 ? 1 : 0,
-    }),
+    xp: scaleRankReward(18 + safeWave * 8 + safeDefeatedCount * 4, rankBonusPercent),
+    resources,
     battleContribution,
+    rankBonusPercent,
   };
 }
 
@@ -523,12 +528,12 @@ export function canClaimCombatTrainingReward(profile: GameProfile) {
   return profile.combatTrainingRewardsClaimed < DAILY_COMBAT_TRAINING_REWARD_LIMIT;
 }
 
-export function claimCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number) {
+export function claimCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number, rank: CombatTrainingRewardRank = "C") {
   if (!canClaimCombatTrainingReward(profile)) {
     return profile;
   }
 
-  const reward = getCombatTrainingReward(profile, wave, defeatedCount);
+  const reward = getCombatTrainingReward(profile, wave, defeatedCount, rank);
   const next = cloneProfile(profile);
   next.combatTrainingRewardsClaimed += 1;
   next.xp += reward.xp;
@@ -536,7 +541,7 @@ export function claimCombatTrainingReward(profile: GameProfile, wave: number, de
   addRewards(next.resources, reward.resources);
 
   applyLevelUps(next);
-  next.log.unshift(`Тренировочная волна ${Math.max(1, Math.floor(wave))} зачищена.`);
+  next.log.unshift(`Тренировочная волна ${Math.max(1, Math.floor(wave))} зачищена. Ранг: ${rank}.`);
   return touch(next);
 }
 
@@ -654,6 +659,21 @@ function compactResources(resources: Partial<ResourceBag>) {
 
     return next;
   }, {} as Partial<ResourceBag>);
+}
+
+function getCombatTrainingRankBonus(rank: CombatTrainingRewardRank) {
+  const bonuses: Record<CombatTrainingRewardRank, number> = {
+    S: 35,
+    A: 20,
+    B: 10,
+    C: 0,
+  };
+
+  return bonuses[rank];
+}
+
+function scaleRankReward(value: number, bonusPercent: number) {
+  return Math.max(0, Math.round(value * (1 + bonusPercent / 100)));
 }
 
 function applyLevelUps(profile: GameProfile) {

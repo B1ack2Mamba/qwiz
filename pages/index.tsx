@@ -21,6 +21,7 @@ import {
   Dungeon,
   Enhancement,
   EnhancementId,
+  CombatTrainingRewardRank,
   GameProfile,
   ProfessionId,
   canEnterDungeon,
@@ -314,17 +315,17 @@ export default function HomePage() {
     updateProfile(nextProfile, nextProfile === profile ? "Нужны провиант и эфир." : "Вклад в битву внесен.");
   }
 
-  function runCombatTrainingReward(wave: number, defeatedCount: number) {
+  function runCombatTrainingReward(wave: number, defeatedCount: number, rank: CombatTrainingRewardRank) {
     if (!profile) {
       return;
     }
 
     const previousClaims = profile.combatTrainingRewardsClaimed;
-    const nextProfile = claimCombatTrainingReward(profile, wave, defeatedCount);
+    const nextProfile = claimCombatTrainingReward(profile, wave, defeatedCount, rank);
     updateProfile(
       nextProfile,
       nextProfile.combatTrainingRewardsClaimed > previousClaims
-        ? `Награда за тренировочную волну ${wave} получена.`
+        ? `Награда за тренировочную волну ${wave} получена. Ранг: ${rank}.`
         : "Лимит наград за тренировки на сегодня исчерпан.",
     );
   }

@@ -11,6 +11,7 @@ export type Vector2 = {
 
 export type CombatStatus = "fighting" | "victory" | "defeat";
 export type CombatAbilityId = "route-dash" | "ore-breaker" | "blade-fan" | "guard-pulse" | "ether-chain" | "rally-command";
+export type CombatRank = "S" | "A" | "B" | "C";
 export type EnemyAttackKind = "slash" | "blast" | "rush" | "shock";
 
 export type CombatAbility = {
@@ -80,7 +81,10 @@ export type CombatState = {
   combo: number;
   comboUntil: number;
   maxCombo: number;
+  damageDealt: number;
+  damageTaken: number;
   defeatedCount: number;
+  precisionDodges: number;
   status: CombatStatus;
   lastEvent: string;
 };
@@ -129,10 +133,36 @@ export function createCombatTrainingState(profile: GameProfile, heroPower: numbe
     combo: 0,
     comboUntil: 0,
     maxCombo: 0,
+    damageDealt: 0,
+    damageTaken: 0,
     defeatedCount: 0,
+    precisionDodges: 0,
     status: "fighting",
     lastEvent: `Тренировочная волна ${safeWave} началась.`,
   };
+}
+
+export function getCombatTrainingRank(state: CombatState): { rank: CombatRank; score: number } {
+  const clearScore = state.status === "victory" ? 35 : state.status === "defeat" ? 0 : 12;
+  const hpScore = Math.round(clamp(state.player.hp / state.player.maxHp, 0, 1) * 25);
+  const comboScore = Math.min(20, state.maxCombo * 4);
+  const precisionScore = Math.min(15, state.precisionDodges * 5);
+  const damagePenalty = Math.min(20, Math.floor((state.damageTaken / state.player.maxHp) * 30));
+  const score = clamp(clearScore + hpScore + comboScore + precisionScore - damagePenalty, 0, 100);
+
+  if (score >= 85) {
+    return { rank: "S", score };
+  }
+
+  if (score >= 70) {
+    return { rank: "A", score };
+  }
+
+  if (score >= 50) {
+    return { rank: "B", score };
+  }
+
+  return { rank: "C", score };
 }
 
 export function createNextCombatTrainingWave(state: CombatState, profile: GameProfile, heroPower: number): CombatState {
@@ -160,6 +190,7 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
   let combo = state.combo;
   let comboUntil = state.comboUntil;
   const maxCombo = state.maxCombo;
+  let damageTaken = state.damageTaken;
 
   if (status === "fighting") {
     const direction = normalize(move);
@@ -201,12 +232,14 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
           getDistance(enemy.attackTarget, player.position) <= enemy.attackRadius + player.radius &&
           timeMs >= player.invulnerableUntil
         ) {
-          player.hp = Math.max(0, player.hp - enemy.attackDamage);
+          const actualDamage = Math.min(player.hp, enemy.attackDamage);
+          player.hp = Math.max(0, player.hp - actualDamage);
           player.invulnerableUntil = timeMs + 760;
           player.precisionUntil = 0;
+          damageTaken += actualDamage;
           combo = 0;
           comboUntil = 0;
-          lastEvent = `${enemy.name}: спецатака -${enemy.attackDamage} HP.`;
+          lastEvent = `${enemy.name}: спецатака -${actualDamage} HP.`;
         }
       }
 
@@ -250,12 +283,14 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
         contactDistance <= player.radius + enemy.radius + 5 &&
         timeMs >= player.invulnerableUntil
       ) {
-        player.hp = Math.max(0, player.hp - enemy.contactDamage);
+        const actualDamage = Math.min(player.hp, enemy.contactDamage);
+        player.hp = Math.max(0, player.hp - actualDamage);
         player.invulnerableUntil = timeMs + 720;
         player.precisionUntil = 0;
+        damageTaken += actualDamage;
         combo = 0;
         comboUntil = 0;
-        lastEvent = `${enemy.name} наносит урон: -${enemy.contactDamage}.`;
+        lastEvent = `${enemy.name} наносит урон: -${actualDamage}.`;
       }
     }
 
@@ -276,6 +311,7 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
     combo,
     comboUntil,
     maxCombo,
+    damageTaken,
     status,
     lastEvent,
   };
@@ -323,6 +359,7 @@ export function performCombatAttack(state: CombatState): CombatState {
   const damage = hasPrecisionStrike ? Math.round(baseDamage * 1.35) : baseDamage;
   let hitCount = 0;
   let interruptCount = 0;
+  let damageDealt = state.damageDealt;
   let defeatedCount = state.defeatedCount;
   const defeatedNames: string[] = [];
 
@@ -332,6 +369,7 @@ export function performCombatAttack(state: CombatState): CombatState {
     }
 
     const nextHp = Math.max(0, enemy.hp - damage);
+    damageDealt += enemy.hp - nextHp;
     const wasPreparingAttack = enemy.attackLandsAt > state.timeMs && !enemy.attackApplied;
     const interruptMs = (wasPreparingAttack ? 520 : 130) + (hasPrecisionStrike ? 180 : 0);
     const knockbackDistance = 20 + Math.min(state.combo, 5) * 4 + (hasPrecisionStrike ? 18 : 0);
@@ -393,6 +431,7 @@ export function performCombatAttack(state: CombatState): CombatState {
     combo,
     comboUntil,
     maxCombo,
+    damageDealt,
     defeatedCount,
     status,
     lastEvent,
@@ -450,6 +489,7 @@ export function performCombatDodge(state: CombatState, move: Vector2 = { x: 0, y
     combo,
     comboUntil,
     maxCombo,
+    precisionDodges: state.precisionDodges + (isPrecisionDodge ? 1 : 0),
     lastEvent: isPrecisionDodge ? "Точное уклонение: окно контратаки открыто." : "Уклонение: герой вышел из опасной зоны.",
   };
 }
@@ -480,6 +520,7 @@ export function performCombatAbility(state: CombatState): CombatState {
   }));
   let defeatedCount = state.defeatedCount;
   let combo = state.combo;
+  let damageDealt = state.damageDealt;
   let lastEvent = "";
 
   if (player.ability.id === "route-dash") {
@@ -502,6 +543,7 @@ export function performCombatAbility(state: CombatState): CombatState {
       420,
     );
     enemies = result.enemies;
+    damageDealt += result.damageDealt;
     defeatedCount += result.defeatedNames.length;
     combo = result.hitCount > 0 ? Math.min(combo + 1, 6) : combo;
     lastEvent = result.hitCount > 0 ? `Маршрутный рывок задел целей: ${result.hitCount}.` : "Маршрутный рывок вывел героя из-под удара.";
@@ -516,6 +558,7 @@ export function performCombatAbility(state: CombatState): CombatState {
         850,
       );
       enemies = result.enemies;
+      damageDealt += result.damageDealt;
       defeatedCount += result.defeatedNames.length;
       combo = Math.min(combo + 2, 6);
       lastEvent = `Разлом руды оглушает цель: ${target.name}.`;
@@ -531,6 +574,7 @@ export function performCombatAbility(state: CombatState): CombatState {
       260,
     );
     enemies = result.enemies;
+    damageDealt += result.damageDealt;
     defeatedCount += result.defeatedNames.length;
     combo = result.hitCount > 0 ? Math.min(combo + 2, 6) : 0;
     lastEvent = result.hitCount > 0 ? `Клинковый веер попал по целям: ${result.hitCount}.` : "Клинковый веер не достал цели.";
@@ -547,6 +591,7 @@ export function performCombatAbility(state: CombatState): CombatState {
       620,
     );
     enemies = result.enemies;
+    damageDealt += result.damageDealt;
     defeatedCount += result.defeatedNames.length;
     lastEvent = `Щитовой импульс восстановил ${heal} HP.`;
   } else if (player.ability.id === "ether-chain") {
@@ -560,6 +605,7 @@ export function performCombatAbility(state: CombatState): CombatState {
       520,
     );
     enemies = result.enemies;
+    damageDealt += result.damageDealt;
     defeatedCount += result.defeatedNames.length;
     combo = result.hitCount > 0 ? Math.min(combo + 1, 6) : combo;
     lastEvent = result.hitCount > 0 ? `Эфирная цепь прошла по целям: ${result.hitCount}.` : "Эфирная цепь не нашла цели.";
@@ -574,6 +620,7 @@ export function performCombatAbility(state: CombatState): CombatState {
       460,
     );
     enemies = result.enemies;
+    damageDealt += result.damageDealt;
     defeatedCount += result.defeatedNames.length;
     player.attackReadyAt = Math.min(player.attackReadyAt, state.timeMs + 80);
     combo = result.hitCount > 0 ? Math.min(combo + 3, 6) : Math.min(combo + 1, 6);
@@ -595,6 +642,7 @@ export function performCombatAbility(state: CombatState): CombatState {
     combo,
     comboUntil,
     maxCombo,
+    damageDealt,
     defeatedCount,
     status,
     lastEvent,
@@ -695,6 +743,7 @@ function damageEnemies(
   stunMs: number,
 ) {
   let hitCount = 0;
+  let damageDealt = 0;
   const defeatedNames: string[] = [];
   const nextEnemies = enemies.map((enemy) => {
     if (enemy.hp <= 0 || !predicate(enemy)) {
@@ -702,6 +751,7 @@ function damageEnemies(
     }
 
     const nextHp = Math.max(0, enemy.hp - damage);
+    damageDealt += enemy.hp - nextHp;
     hitCount += 1;
 
     if (nextHp <= 0) {
@@ -717,6 +767,7 @@ function damageEnemies(
   });
 
   return {
+    damageDealt,
     enemies: nextEnemies,
     defeatedNames,
     hitCount,
