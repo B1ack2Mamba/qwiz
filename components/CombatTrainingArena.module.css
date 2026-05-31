@@ -141,6 +141,30 @@
   animation: healthCriticalPulse 620ms ease-in-out infinite alternate;
 }
 
+.isLowStamina .staminaTrack {
+  position: relative;
+  border-color: rgba(255, 196, 87, 0.66);
+  box-shadow:
+    0 0 14px rgba(255, 196, 87, 0.22),
+    inset 0 0 8px rgba(0, 0, 0, 0.24);
+}
+
+.isLowStamina .staminaTrack::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 242, 212, 0.54), transparent);
+  content: "";
+  pointer-events: none;
+  transform: translateX(-82%);
+  animation: staminaLowSweep 880ms ease-in-out infinite;
+}
+
+.isLowStamina .staminaTrack i {
+  background: linear-gradient(90deg, #b7791f, #ffc457, #d9f2e9);
+  animation: staminaLowPulse 580ms ease-in-out infinite alternate;
+}
+
 .gridOverlay {
   position: absolute;
   inset: 0;
@@ -1732,6 +1756,32 @@
 
   to {
     filter: saturate(1.18) brightness(1.14);
+  }
+}
+
+@keyframes staminaLowPulse {
+  from {
+    filter: saturate(1) brightness(0.98);
+  }
+
+  to {
+    filter: saturate(1.16) brightness(1.12);
+  }
+}
+
+@keyframes staminaLowSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-82%);
+  }
+
+  45% {
+    opacity: 0.72;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(82%);
   }
 }
 

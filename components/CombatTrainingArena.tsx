@@ -225,6 +225,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const hasPrecisionCounter = combatState.timeMs < combatState.player.precisionUntil;
   const isPlayerProtected = combatState.timeMs < combatState.player.invulnerableUntil;
   const isCriticalHealth = combatState.status === "fighting" && combatState.player.hp / combatState.player.maxHp <= 0.35;
+  const isLowStamina = combatState.status === "fighting" && combatState.player.stamina < combatState.player.dodgeCost;
   const rankSummary = getCombatTrainingRank(combatState);
   const reward = getCombatTrainingReward(profile, combatState.wave, combatState.defeatedCount, rankSummary.rank);
   const rewardClaimed = claimedWaves.has(combatState.wave);
@@ -252,7 +253,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
 
       <div
         aria-label="Боевая арена"
-        className={`${styles.arena} ${isCriticalHealth ? styles.isCriticalHealth : ""}`}
+        className={`${styles.arena} ${isCriticalHealth ? styles.isCriticalHealth : ""} ${isLowStamina ? styles.isLowStamina : ""}`}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={aimAndAttack}
         ref={arenaRef}
