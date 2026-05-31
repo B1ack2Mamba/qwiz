@@ -998,6 +998,195 @@ button {
   gap: 16px;
 }
 
+.hero-loadout {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.42fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  min-height: 330px;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 48px),
+    linear-gradient(135deg, #17352f, #2f6f9f 56%, #0f766e);
+  color: #ffffff;
+}
+
+.hero-loadout .section-kicker {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.hero-loadout-scene {
+  position: relative;
+  display: grid;
+  min-height: 292px;
+  place-items: center;
+}
+
+.hero-loadout-scene::before,
+.hero-loadout-scene::after {
+  position: absolute;
+  content: "";
+}
+
+.hero-loadout-scene::before {
+  right: 7%;
+  bottom: 18px;
+  left: 7%;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.24);
+  filter: blur(2px);
+}
+
+.hero-loadout-scene::after {
+  inset: 22px 8px 36px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(217, 242, 233, 0.16), transparent 32%, rgba(255, 242, 212, 0.1)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
+}
+
+.hero-loadout .character-sprite-preview {
+  z-index: 1;
+  grid-row: auto;
+  width: min(100%, 162px);
+  height: 298px;
+  filter:
+    drop-shadow(0 20px 22px rgba(0, 0, 0, 0.28))
+    saturate(1.08);
+}
+
+.hero-loadout .profession-avatar-3d {
+  z-index: 1;
+  grid-row: auto;
+  max-width: 210px;
+}
+
+.hero-loadout-crest {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(12, 23, 25, 0.4);
+  font-weight: 900;
+}
+
+.hero-loadout-copy {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hero-loadout-copy h3 {
+  margin: 5px 0 0;
+  font-size: 30px;
+  line-height: 1.05;
+}
+
+.hero-loadout-copy p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.45;
+}
+
+.hero-weapon-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.hero-weapon-row .weapon-preview-3d {
+  width: 110px;
+}
+
+.hero-weapon-row strong,
+.hero-weapon-row span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hero-weapon-row strong {
+  margin-top: 3px;
+  font-size: 18px;
+}
+
+.hero-weapon-row div > span:not(.section-kicker) {
+  margin-top: 5px;
+  color: #fff2d4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.weapon-stage-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weapon-stage-dot {
+  display: grid;
+  min-height: 36px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(12, 23, 25, 0.28);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.weapon-stage-dot.is-unlocked {
+  border-color: rgba(217, 242, 233, 0.42);
+  background: rgba(217, 242, 233, 0.16);
+  color: #ffffff;
+}
+
+.weapon-stage-dot.is-current {
+  border-color: #fff2d4;
+  background: #fff2d4;
+  color: #17352f;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.hero-loadout-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.28fr) minmax(0, 0.82fr);
+  gap: 8px;
+}
+
+.hero-loadout-stats span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hero-loadout-stats strong {
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
 .game-log-panel {
   display: grid;
   gap: 14px;
@@ -1652,6 +1841,37 @@ button {
   .profession-card {
     grid-template-columns: minmax(94px, 0.42fr) minmax(0, 1fr);
     min-height: 172px;
+  }
+
+  .hero-loadout {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .hero-loadout-scene {
+    min-height: 286px;
+  }
+
+  .hero-loadout .character-sprite-preview {
+    width: min(100%, 142px);
+    height: 262px;
+  }
+
+  .hero-loadout-copy h3 {
+    font-size: 26px;
+  }
+
+  .hero-weapon-row {
+    grid-template-columns: 90px minmax(0, 1fr);
+  }
+
+  .hero-weapon-row .weapon-preview-3d {
+    width: 90px;
+  }
+
+  .hero-loadout-stats {
+    grid-template-columns: 1fr;
   }
 
   .profession-rule {

@@ -397,6 +397,12 @@ export default function HomePage() {
     );
   }
 
+  const activeWeaponEnhancement = professionWeaponEnhancement[profile.professionId];
+  const activeWeaponLevel = profile.enhancements[activeWeaponEnhancement] || 0;
+  const activeWeapon = getEnhancement(activeWeaponEnhancement);
+  const nextWeaponStage =
+    activeWeaponLevel >= 4 ? "Максимум" : getCompactWeaponStageLabel(activeWeaponLevel + 1);
+
   return (
     <div className="app-shell game-shell">
       <aside className="sidebar game-sidebar">
@@ -485,6 +491,49 @@ export default function HomePage() {
                 {freeProfessionChangeAvailable ? "1 смена доступна" : "Смена за ресурсы"}
               </span>
             </div>
+            <section className="hero-loadout" aria-label="Текущий герой">
+              <div className="hero-loadout-scene">
+                {hasCharacterSprite(profile.professionId) ? (
+                  <CharacterSpritePreview
+                    professionId={profile.professionId}
+                    selected
+                    weaponLevel={activeWeaponLevel}
+                  />
+                ) : (
+                  <ProfessionAvatar3D professionId={profile.professionId} selected weaponLevel={activeWeaponLevel} />
+                )}
+                <span className="hero-loadout-crest" aria-hidden="true">
+                  {profession.crest}
+                </span>
+              </div>
+              <div className="hero-loadout-copy">
+                <div>
+                  <span className="section-kicker">Активный комплект</span>
+                  <h3>{profession.name}</h3>
+                  <p>{profession.function}</p>
+                </div>
+                <div className="hero-weapon-row">
+                  <WeaponPreview3D enhancementId={activeWeaponEnhancement} level={activeWeaponLevel} />
+                  <div>
+                    <span className="section-kicker">{activeWeapon.school}</span>
+                    <strong>{enhancementWeaponNames[activeWeaponEnhancement]}</strong>
+                    <span>{getWeaponStageLabel(activeWeaponLevel)}</span>
+                  </div>
+                </div>
+                <WeaponStageTrack level={activeWeaponLevel} />
+                <div className="hero-loadout-stats">
+                  <span>
+                    Сила <strong>{formatNumber(heroPower)}</strong>
+                  </span>
+                  <span>
+                    След. вид <strong>{nextWeaponStage}</strong>
+                  </span>
+                  <span>
+                    Вклад <strong>{profile.battleContribution}</strong>
+                  </span>
+                </div>
+              </div>
+            </section>
             {professionSeason && (
               <div className="profession-rule">
                 <span>
@@ -709,6 +758,31 @@ function RewardLine({
       ))}
     </div>
   );
+}
+
+function WeaponStageTrack({ level }: { level: number }) {
+  const cappedLevel = Math.max(0, Math.min(4, Math.floor(level)));
+  const stages = [0, 1, 2, 3, 4];
+
+  return (
+    <div className="weapon-stage-track" aria-label="Прогресс внешнего вида оружия">
+      {stages.map((stage) => (
+        <span
+          className={`weapon-stage-dot${stage <= cappedLevel ? " is-unlocked" : ""}${stage === cappedLevel ? " is-current" : ""}`}
+          key={stage}
+          title={getWeaponStageLabel(stage)}
+        >
+          {stage}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function getCompactWeaponStageLabel(level: number) {
+  const compactLabels = ["База", "Заряд", "Редкий", "Эпик", "Пробуждение"];
+  const tier = Math.max(0, Math.min(4, Math.floor(level)));
+  return compactLabels[tier];
 }
 
 function getProfessionChangeLabel(mode: ReturnType<typeof getProfessionChangeMode>) {

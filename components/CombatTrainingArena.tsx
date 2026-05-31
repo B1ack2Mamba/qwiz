@@ -40,13 +40,24 @@ const dodgeCodes = new Set(["KeyQ", "ControlLeft", "ControlRight"]);
 export function CombatTrainingArena({ heroPower, onClaimReward, profile }: CombatTrainingArenaProps) {
   const [combatState, setCombatState] = useState<CombatState>(() => createCombatTrainingState(profile, heroPower));
   const [claimedWaves, setClaimedWaves] = useState<Set<number>>(() => new Set());
+  const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const stateRef = useRef(combatState);
+  const isPlayerMovingRef = useRef(false);
   const pressedKeysRef = useRef<Set<string>>(new Set());
   const touchMoveRef = useRef<Vector2>({ x: 0, y: 0 });
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const profession = getProfession(profile.professionId);
   const spriteSheet = getCharacterSpriteSheet(profile.professionId);
   const spriteWeaponLevel = profile.enhancements[professionWeaponEnhancement[profile.professionId]] || 0;
+
+  const updatePlayerMoving = useCallback((nextIsMoving: boolean) => {
+    if (isPlayerMovingRef.current === nextIsMoving) {
+      return;
+    }
+
+    isPlayerMovingRef.current = nextIsMoving;
+    setIsPlayerMoving(nextIsMoving);
+  }, []);
 
   useEffect(() => {
     stateRef.current = combatState;
@@ -80,9 +91,10 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
     const next = createCombatTrainingState(profile, heroPower);
     stateRef.current = next;
     setCombatState(next);
+    updatePlayerMoving(false);
     pressedKeysRef.current.clear();
     touchMoveRef.current = { x: 0, y: 0 };
-  }, [heroPower, profile]);
+  }, [heroPower, profile, updatePlayerMoving]);
 
   const claimReward = useCallback(() => {
     if (combatState.status !== "victory" || claimedWaves.has(combatState.wave) || !canClaimCombatTrainingReward(profile)) {
@@ -103,9 +115,10 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
       stateRef.current = next;
       return next;
     });
+    updatePlayerMoving(false);
     pressedKeysRef.current.clear();
     touchMoveRef.current = { x: 0, y: 0 };
-  }, [heroPower, profile]);
+  }, [heroPower, profile, updatePlayerMoving]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -156,6 +169,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
       const deltaMs = time - previousTime;
       previousTime = time;
       const move = readMoveVector(pressedKeysRef.current, touchMoveRef.current);
+      updatePlayerMoving(stateRef.current.status === "fighting" && (move.x !== 0 || move.y !== 0));
 
       setCombatState((current) => {
         const next = stepCombatTraining(current, move, deltaMs);
@@ -168,7 +182,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
 
     animationId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(animationId);
-  }, []);
+  }, [updatePlayerMoving]);
 
   const aimAndAttack = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -306,7 +320,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
             <div className={styles.intentLine} key={`${enemy.id}-intent`} style={intentLineStyle(enemy.position, enemy.attackTarget)} />
           ) : null,
         )}
-        <div className={playerClass(combatState, Boolean(spriteSheet))} style={positionStyle(combatState.player.position)}>
+        <div className={playerClass(combatState, Boolean(spriteSheet), isPlayerMoving)} style={playerArenaStyle(combatState)}>
           {spriteSheet ? (
             <span
               aria-label={getCharacterSpriteLabel(profile.professionId)}
@@ -667,6 +681,39 @@ function rankBadgeClass(rank: string) {
   return `${styles.rankBadge} ${rankClass[rank] || styles.rankC}`;
 }
 
+function playerArenaStyle(state: CombatState): CSSProperties {
+  const facing = state.player.facing;
+  const faceSign = facing.x < -0.08 ? -1 : 1;
+  const attackPullX = -facing.x * 10;
+  const attackPullY = -facing.y * 8;
+  const attackStrikeX = facing.x * 18;
+  const attackStrikeY = facing.y * 12;
+  const dodgeX = facing.x * 22;
+  const dodgeY = facing.y * 16;
+  const stepX = facing.x * 4;
+  const stepY = facing.y * 3;
+  const turnSign = faceSign < 0 ? -1 : 1;
+
+  return {
+    ...positionStyle(state.player.position),
+    "--player-attack-pull-x": `${attackPullX}px`,
+    "--player-attack-pull-y": `${attackPullY}px`,
+    "--player-attack-strike-x": `${attackStrikeX}px`,
+    "--player-attack-strike-y": `${attackStrikeY}px`,
+    "--player-attack-strike-rotate": `${clampNumber(12 * turnSign + facing.y * 5, -18, 18)}deg`,
+    "--player-attack-windup-rotate": `${clampNumber(-9 * turnSign - facing.y * 4, -16, 16)}deg`,
+    "--player-dodge-x": `${dodgeX}px`,
+    "--player-dodge-y": `${dodgeY}px`,
+    "--player-face-sign": faceSign,
+    "--player-idle-tilt": `${clampNumber(facing.y * 2.4, -3, 3)}deg`,
+    "--player-move-tilt": `${clampNumber(facing.x * 2.5 + facing.y * 4, -6, 6)}deg`,
+    "--player-step-back-x": `${-stepX}px`,
+    "--player-step-back-y": `${-stepY}px`,
+    "--player-step-x": `${stepX}px`,
+    "--player-step-y": `${stepY}px`,
+  } as CSSProperties;
+}
+
 function playerSpriteStyle(spriteSheet: string, weaponLevel: number): CSSProperties {
   return {
     "--player-sprite-image": `url("${spriteSheet}")`,
@@ -674,14 +721,14 @@ function playerSpriteStyle(spriteSheet: string, weaponLevel: number): CSSPropert
   } as CSSProperties;
 }
 
-function playerClass(state: CombatState, hasSprite: boolean) {
+function playerClass(state: CombatState, hasSprite: boolean, isMoving: boolean) {
   const isProtected = state.timeMs < state.player.invulnerableUntil;
   const isDodging = state.timeMs < state.player.dodgeUntil;
   const isPrecise = state.timeMs < state.player.precisionUntil;
   const isAttacking = state.timeMs < state.player.attackUntil;
   return `${styles.player}${hasSprite ? ` ${styles.hasSprite}` : ""}${isProtected ? ` ${styles.isProtected}` : ""}${
     isDodging ? ` ${styles.isDodging}` : ""
-  }${isPrecise ? ` ${styles.isPrecise}` : ""}${isAttacking ? ` ${styles.isAttacking}` : ""}`;
+  }${isPrecise ? ` ${styles.isPrecise}` : ""}${isAttacking ? ` ${styles.isAttacking}` : ""}${isMoving ? ` ${styles.isMoving}` : ""}`;
 }
 
 function enemyClass(enemy: CombatEnemy, isDown: boolean, isHit: boolean, isStunned: boolean, isCharging: boolean) {
@@ -746,4 +793,8 @@ function getPlayerAttackProgress(state: CombatState) {
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
