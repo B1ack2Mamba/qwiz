@@ -1359,10 +1359,32 @@
   filter: saturate(0.82);
 }
 
+.isStunned::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: calc(100% + 22px);
+  height: calc(100% + 16px);
+  border: 1px solid rgba(217, 242, 233, 0.72);
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(217, 242, 233, 0.2), transparent 58%),
+    conic-gradient(from 12deg, rgba(255, 242, 212, 0.42), transparent 22%, rgba(217, 242, 233, 0.5), transparent 58%);
+  box-shadow:
+    0 0 16px rgba(217, 242, 233, 0.22),
+    inset 0 0 12px rgba(255, 255, 255, 0.12);
+  content: "";
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.88) rotate(-8deg);
+  animation: enemyStunRing 700ms ease-in-out infinite alternate;
+}
+
 .isStunned::after {
   position: absolute;
-  top: -14px;
+  top: -38px;
   left: 50%;
+  z-index: 1;
   width: 26px;
   height: 4px;
   border-radius: 999px;
@@ -1372,6 +1394,13 @@
     9px 2px 0 rgba(255, 242, 212, 0.8);
   content: "";
   transform: translateX(-50%);
+  animation: enemyStunSparks 560ms ease-in-out infinite alternate;
+}
+
+.isStunned .enemyName {
+  z-index: 2;
+  background: rgba(217, 242, 233, 0.94);
+  color: #17352f;
 }
 
 .isDown {
@@ -1438,6 +1467,36 @@
 
   100% {
     transform: rotate(45deg) scale(1);
+  }
+}
+
+@keyframes enemyStunRing {
+  from {
+    opacity: 0.44;
+    transform: translate(-50%, -50%) scale(0.88) rotate(-8deg);
+  }
+
+  to {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1.08) rotate(10deg);
+  }
+}
+
+@keyframes enemyStunSparks {
+  from {
+    opacity: 0.72;
+    box-shadow:
+      -9px -2px 0 rgba(255, 242, 212, 0.8),
+      9px 2px 0 rgba(255, 242, 212, 0.8);
+    transform: translateX(-50%) translateY(0);
+  }
+
+  to {
+    opacity: 1;
+    box-shadow:
+      -12px -3px 0 rgba(255, 242, 212, 0.86),
+      12px 3px 0 rgba(255, 242, 212, 0.86);
+    transform: translateX(-50%) translateY(-2px);
   }
 }
 
