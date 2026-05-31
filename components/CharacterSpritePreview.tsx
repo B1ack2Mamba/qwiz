@@ -57,7 +57,7 @@ export function CharacterSpritePreview({ professionId, selected = false, weaponL
   return (
     <span
       aria-label={getCharacterSpriteLabel(professionId)}
-      className={`character-sprite-preview${selected ? " is-selected" : ""}`}
+      className={`character-sprite-preview is-${professionId}${selected ? " is-selected" : ""}`}
       role="img"
       style={style}
     />
