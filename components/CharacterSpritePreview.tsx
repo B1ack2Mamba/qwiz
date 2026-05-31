@@ -33,8 +33,12 @@ export function getCharacterSpriteLabel(professionId: ProfessionId) {
   return characterSpriteLabels[professionId] || "ESSEN profession character";
 }
 
+export function getCharacterSpriteTier(weaponLevel: number) {
+  return Math.max(0, Math.min(4, Math.floor(weaponLevel)));
+}
+
 export function getCharacterSpritePosition(weaponLevel: number) {
-  const tier = Math.max(0, Math.min(4, Math.floor(weaponLevel)));
+  const tier = getCharacterSpriteTier(weaponLevel);
   return `${tier * 25}%`;
 }
 
@@ -44,6 +48,7 @@ export function hasCharacterSprite(professionId: ProfessionId) {
 
 export function CharacterSpritePreview({ professionId, selected = false, weaponLevel = 0 }: CharacterSpritePreviewProps) {
   const spriteSheet = characterSpriteSheets[professionId];
+  const spriteTier = getCharacterSpriteTier(weaponLevel);
 
   if (!spriteSheet) {
     return null;
@@ -58,6 +63,7 @@ export function CharacterSpritePreview({ professionId, selected = false, weaponL
     <span
       aria-label={getCharacterSpriteLabel(professionId)}
       className={`character-sprite-preview is-${professionId}${selected ? " is-selected" : ""}`}
+      data-weapon-stage={spriteTier}
       role="img"
       style={style}
     />

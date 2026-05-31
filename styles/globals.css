@@ -1433,6 +1433,48 @@ button {
   mix-blend-mode: screen;
 }
 
+.character-sprite-preview[data-weapon-stage="2"]::after {
+  background:
+    radial-gradient(circle at 58% 34%, rgba(255, 242, 212, 0.18), transparent 22%),
+    linear-gradient(105deg, rgba(255, 255, 255, 0.18), transparent 25%),
+    linear-gradient(255deg, rgba(142, 199, 238, 0.16), transparent 34%);
+  box-shadow: 0 0 18px rgba(142, 199, 238, 0.16);
+  opacity: 0.62;
+}
+
+.character-sprite-preview[data-weapon-stage="3"]::after {
+  background:
+    radial-gradient(circle at 58% 34%, rgba(255, 242, 212, 0.26), transparent 24%),
+    radial-gradient(circle at 44% 62%, rgba(142, 199, 238, 0.16), transparent 24%),
+    linear-gradient(105deg, rgba(255, 255, 255, 0.2), transparent 25%),
+    linear-gradient(255deg, rgba(15, 118, 110, 0.18), transparent 34%);
+  box-shadow:
+    0 0 20px rgba(255, 242, 212, 0.18),
+    0 0 30px rgba(142, 199, 238, 0.14);
+  opacity: 0.68;
+}
+
+.character-sprite-preview[data-weapon-stage="4"]::before {
+  background:
+    radial-gradient(ellipse, rgba(0, 0, 0, 0.34), transparent 70%),
+    radial-gradient(ellipse, rgba(15, 118, 110, 0.24), transparent 74%);
+}
+
+.character-sprite-preview[data-weapon-stage="4"]::after {
+  background:
+    radial-gradient(circle at 58% 32%, rgba(255, 242, 212, 0.36), transparent 25%),
+    radial-gradient(circle at 42% 64%, rgba(142, 199, 238, 0.24), transparent 27%),
+    radial-gradient(circle at 72% 58%, rgba(15, 118, 110, 0.2), transparent 26%),
+    linear-gradient(105deg, rgba(255, 255, 255, 0.24), transparent 25%),
+    linear-gradient(255deg, rgba(255, 242, 212, 0.14), transparent 36%);
+  animation-name: characterSpriteAwakenedAura;
+  box-shadow:
+    0 0 22px rgba(255, 242, 212, 0.24),
+    0 0 38px rgba(142, 199, 238, 0.18),
+    inset 0 0 22px rgba(255, 255, 255, 0.08);
+  opacity: 0.78;
+}
+
 .character-sprite-preview.is-selected {
   --sprite-selected-lift: -2px;
 
@@ -2024,6 +2066,24 @@ button {
   74% {
     opacity: 0.5;
     transform: translateX(-1px) scale(0.992);
+  }
+}
+
+@keyframes characterSpriteAwakenedAura {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: translateX(0) scale(1);
+  }
+
+  34% {
+    opacity: 0.88;
+    transform: translateX(2px) scale(1.026);
+  }
+
+  68% {
+    opacity: 0.74;
+    transform: translateX(-1px) scale(0.996);
   }
 }
 
