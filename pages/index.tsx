@@ -6,6 +6,7 @@ import {
   getWeaponStageLabel,
   professionWeaponEnhancement,
 } from "../components/ProfessionAvatar3D";
+import { CharacterSpritePreview, hasCharacterSprite } from "../components/CharacterSpritePreview";
 import {
   AppState,
   createInitialState,
@@ -492,11 +493,19 @@ export default function HomePage() {
                     onClick={() => runProfessionChange(item.id)}
                     type="button"
                   >
-                    <ProfessionAvatar3D
-                      professionId={item.id}
-                      selected={profile.professionId === item.id}
-                      weaponLevel={weaponLevel}
-                    />
+                    {hasCharacterSprite(item.id) ? (
+                      <CharacterSpritePreview
+                        professionId={item.id}
+                        selected={profile.professionId === item.id}
+                        weaponLevel={weaponLevel}
+                      />
+                    ) : (
+                      <ProfessionAvatar3D
+                        professionId={item.id}
+                        selected={profile.professionId === item.id}
+                        weaponLevel={weaponLevel}
+                      />
+                    )}
                     <span>
                       <strong>{item.name}</strong>
                       <span>{item.function}</span>
