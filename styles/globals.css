@@ -1320,6 +1320,8 @@ button {
   --sprite-offset-y: 0px;
   --sprite-contrast: 1;
   --sprite-saturation: 1.03;
+  --sprite-selected-lift: 0px;
+  --sprite-idle-delay: 0s;
 
   position: relative;
   display: block;
@@ -1337,7 +1339,9 @@ button {
     drop-shadow(0 16px 18px rgba(23, 53, 47, 0.16))
     saturate(var(--sprite-saturation))
     contrast(var(--sprite-contrast));
-  transform: translateY(var(--sprite-offset-y)) scale(var(--sprite-scale-x), var(--sprite-scale-y));
+  animation: characterSpriteIdle 4200ms ease-in-out infinite;
+  animation-delay: var(--sprite-idle-delay);
+  transform: translateY(calc(var(--sprite-offset-y) + var(--sprite-selected-lift))) scale(var(--sprite-scale-x), var(--sprite-scale-y));
   transform-origin: 50% 88%;
   transition:
     filter 160ms ease,
@@ -1350,6 +1354,7 @@ button {
   --sprite-offset-y: -5px;
   --sprite-contrast: 1.08;
   --sprite-saturation: 1.08;
+  --sprite-idle-delay: -0.2s;
 }
 
 .character-sprite-preview.is-miner {
@@ -1358,6 +1363,7 @@ button {
   --sprite-offset-y: 7px;
   --sprite-contrast: 1.04;
   --sprite-saturation: 1.02;
+  --sprite-idle-delay: -1s;
 }
 
 .character-sprite-preview.is-warden {
@@ -1366,6 +1372,7 @@ button {
   --sprite-offset-y: -2px;
   --sprite-contrast: 1.1;
   --sprite-saturation: 1.08;
+  --sprite-idle-delay: -1.7s;
 }
 
 .character-sprite-preview.is-artisan {
@@ -1374,6 +1381,7 @@ button {
   --sprite-offset-y: 5px;
   --sprite-contrast: 1.06;
   --sprite-saturation: 1.04;
+  --sprite-idle-delay: -2.3s;
 }
 
 .character-sprite-preview.is-enchanter {
@@ -1382,6 +1390,7 @@ button {
   --sprite-offset-y: -7px;
   --sprite-contrast: 1.09;
   --sprite-saturation: 1.1;
+  --sprite-idle-delay: -2.8s;
 }
 
 .character-sprite-preview.is-tactician {
@@ -1390,6 +1399,7 @@ button {
   --sprite-offset-y: -3px;
   --sprite-contrast: 1.06;
   --sprite-saturation: 1.07;
+  --sprite-idle-delay: -3.4s;
 }
 
 .character-sprite-preview::before,
@@ -1406,6 +1416,8 @@ button {
   height: 15px;
   border-radius: 999px;
   background: radial-gradient(ellipse, rgba(0, 0, 0, 0.28), transparent 72%);
+  animation: characterSpriteShadow 4200ms ease-in-out infinite;
+  animation-delay: var(--sprite-idle-delay);
   filter: blur(1.5px);
 }
 
@@ -1415,18 +1427,21 @@ button {
   background:
     linear-gradient(105deg, rgba(255, 255, 255, 0.16), transparent 25%),
     linear-gradient(255deg, rgba(142, 199, 238, 0.12), transparent 32%);
+  animation: characterSpriteAura 5200ms ease-in-out infinite;
+  animation-delay: calc(var(--sprite-idle-delay) - 0.4s);
   opacity: 0.55;
   mix-blend-mode: screen;
 }
 
 .character-sprite-preview.is-selected {
+  --sprite-selected-lift: -2px;
+
   filter:
     drop-shadow(9px 4px 0 rgba(255, 242, 212, 0.09))
     drop-shadow(-8px 3px 0 rgba(142, 199, 238, 0.08))
     drop-shadow(0 18px 22px rgba(15, 118, 110, 0.24))
     saturate(1.08)
     contrast(var(--sprite-contrast));
-  transform: translateY(calc(var(--sprite-offset-y) - 2px)) scale(var(--sprite-scale-x), var(--sprite-scale-y));
 }
 
 .profession-weapon-note {
@@ -1963,6 +1978,55 @@ button {
   transform: translateY(0);
 }
 
+@keyframes characterSpriteIdle {
+  0%,
+  100% {
+    transform: translateY(calc(var(--sprite-offset-y) + var(--sprite-selected-lift))) scale(var(--sprite-scale-x), var(--sprite-scale-y))
+      rotate(0deg);
+  }
+
+  46% {
+    transform: translateY(calc(var(--sprite-offset-y) + var(--sprite-selected-lift) - 4px))
+      scale(var(--sprite-scale-x), var(--sprite-scale-y)) rotate(-0.7deg);
+  }
+
+  68% {
+    transform: translateY(calc(var(--sprite-offset-y) + var(--sprite-selected-lift) - 2px))
+      scale(var(--sprite-scale-x), var(--sprite-scale-y)) rotate(0.45deg);
+  }
+}
+
+@keyframes characterSpriteShadow {
+  0%,
+  100% {
+    opacity: 0.86;
+    transform: scaleX(1);
+  }
+
+  48% {
+    opacity: 0.62;
+    transform: scaleX(0.9);
+  }
+}
+
+@keyframes characterSpriteAura {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: translateX(0) scale(1);
+  }
+
+  42% {
+    opacity: 0.66;
+    transform: translateX(2px) scale(1.018);
+  }
+
+  74% {
+    opacity: 0.5;
+    transform: translateX(-1px) scale(0.992);
+  }
+}
+
 @keyframes upgradeLoadoutSweep {
   0% {
     opacity: 0;
@@ -2033,6 +2097,14 @@ button {
     box-shadow:
       0 0 0 2px rgba(255, 242, 212, 0.5),
       0 18px 34px rgba(23, 53, 47, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-sprite-preview,
+  .character-sprite-preview::before,
+  .character-sprite-preview::after {
+    animation: none;
   }
 }
 
