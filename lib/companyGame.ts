@@ -17,6 +17,12 @@ export type TrainingReward = {
   rankBonusPercent: number;
 };
 
+export type MissionOutcome = {
+  xp: number;
+  resources: Partial<ResourceBag>;
+  battleContribution: number;
+};
+
 export type BattleReadinessTierId = "patrol" | "hold" | "counter" | "breakthrough";
 
 export type BattleReadinessTier = {
@@ -561,22 +567,34 @@ export function canEnterDungeon(profile: GameProfile, dungeon: Dungeon) {
   );
 }
 
+export function getMissionOutcome(profile: GameProfile, mission: DailyMission): MissionOutcome {
+  const directiveRewards = getDirectiveMissionRewards(profile, mission);
+  const resources = compactResources({
+    ore: (mission.rewards.ore || 0) + (directiveRewards.ore || 0) + (profile.professionId === "miner" ? 1 : 0),
+    essence: (mission.rewards.essence || 0) + (directiveRewards.essence || 0),
+    schematics: (mission.rewards.schematics || 0) + (directiveRewards.schematics || 0),
+    supplies: (mission.rewards.supplies || 0) + (directiveRewards.supplies || 0),
+  });
+
+  return {
+    xp: mission.power + getDirectiveMissionXp(profile, mission),
+    resources,
+    battleContribution: getDirectiveMissionContribution(profile),
+  };
+}
+
 export function completeMission(profile: GameProfile, mission: DailyMission) {
   if (profile.completedMissions.includes(mission.id) || profile.energy <= 0) {
     return profile;
   }
 
+  const outcome = getMissionOutcome(profile, mission);
   const next = cloneProfile(profile);
   next.energy -= 1;
-  next.xp += mission.power + getDirectiveMissionXp(profile, mission);
+  next.xp += outcome.xp;
   next.completedMissions.push(mission.id);
-  addRewards(next.resources, mission.rewards);
-  addRewards(next.resources, getDirectiveMissionRewards(profile, mission));
-  next.battleContribution += getDirectiveMissionContribution(profile);
-
-  if (next.professionId === "miner") {
-    next.resources.ore += 1;
-  }
+  addRewards(next.resources, outcome.resources);
+  next.battleContribution += outcome.battleContribution;
 
   applyLevelUps(next);
   next.log.unshift(`Задание закрыто: ${mission.title}.`);

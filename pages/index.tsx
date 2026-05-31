@@ -44,6 +44,7 @@ import {
   getDungeonPower,
   getEnhancement,
   getEnhancementCost,
+  getMissionOutcome,
   getProfessionChangeCost,
   getProfessionChangeMode,
   getProfessionSeason,
@@ -666,6 +667,7 @@ export default function HomePage() {
             <div className="mission-grid">
               {dailyMissions.map((mission) => {
                 const completed = profile.completedMissions.includes(mission.id);
+                const outcome = getMissionOutcome(profile, mission);
                 return (
                   <article className={`mission-card${completed ? " is-complete" : ""}`} key={mission.id}>
                     <div>
@@ -673,7 +675,13 @@ export default function HomePage() {
                       <h3>{mission.title}</h3>
                       <p>{mission.description}</p>
                     </div>
-                    <RewardLine rewards={mission.rewards} />
+                    <RewardLine
+                      extras={[
+                        `+${outcome.xp} XP`,
+                        ...(outcome.battleContribution > 0 ? [`+${outcome.battleContribution} готовность`] : []),
+                      ]}
+                      rewards={outcome.resources}
+                    />
                     <button
                       className="primary-button compact"
                       disabled={completed || profile.energy <= 0}
@@ -816,9 +824,11 @@ export default function HomePage() {
 }
 
 function RewardLine({
+  extras = [],
   prefix = "+",
   rewards,
 }: {
+  extras?: string[];
   prefix?: "+" | "-";
   rewards: Partial<Record<keyof typeof resourceLabels, number>>;
 }) {
@@ -833,6 +843,9 @@ function RewardLine({
           {prefix}
           {amount} {resourceLabels[resource]}
         </span>
+      ))}
+      {extras.map((extra) => (
+        <span key={extra}>{extra}</span>
       ))}
     </div>
   );
