@@ -803,6 +803,10 @@
   --combat-ability-ring: rgba(217, 242, 233, 0.3);
   --combat-ability-soft: rgba(217, 242, 233, 0.12);
   --player-cast-duration: 440ms;
+  --player-cast-echo-opacity: 0.28;
+  --player-cast-echo-rotate: 3deg;
+  --player-cast-echo-x: 5px;
+  --player-cast-echo-y: -10px;
   --player-cast-lift: -12px;
   --player-cast-scale-y: 1.04;
   --player-cast-tilt: 3deg;
@@ -1065,6 +1069,10 @@
   --player-attack-windup-skew: -2deg;
   --player-dodge-duration: 230ms;
   --player-cast-duration: 360ms;
+  --player-cast-echo-opacity: 0.32;
+  --player-cast-echo-rotate: 7deg;
+  --player-cast-echo-x: 9px;
+  --player-cast-echo-y: -13px;
   --player-cast-lift: -14px;
   --player-cast-scale-y: 1.05;
   --player-cast-tilt: 4deg;
@@ -1091,6 +1099,10 @@
   --player-attack-windup-skew: -2deg;
   --player-dodge-duration: 300ms;
   --player-cast-duration: 520ms;
+  --player-cast-echo-opacity: 0.22;
+  --player-cast-echo-rotate: -2deg;
+  --player-cast-echo-x: -4px;
+  --player-cast-echo-y: -6px;
   --player-cast-lift: -7px;
   --player-cast-scale-y: 1.02;
   --player-cast-tilt: 1deg;
@@ -1114,6 +1126,10 @@
   --player-attack-strike-skew: 7deg;
   --player-attack-windup-lift: -7px;
   --player-cast-duration: 400ms;
+  --player-cast-echo-opacity: 0.3;
+  --player-cast-echo-rotate: 5deg;
+  --player-cast-echo-x: 7px;
+  --player-cast-echo-y: -11px;
   --player-cast-lift: -11px;
   --player-cast-scale-y: 1.04;
   --player-cast-tilt: 2deg;
@@ -1136,6 +1152,10 @@
   --player-attack-windup-lift: -4px;
   --player-dodge-duration: 285ms;
   --player-cast-duration: 500ms;
+  --player-cast-echo-opacity: 0.24;
+  --player-cast-echo-rotate: -3deg;
+  --player-cast-echo-x: -5px;
+  --player-cast-echo-y: -8px;
   --player-cast-lift: -8px;
   --player-cast-scale-y: 1.03;
   --player-cast-tilt: 1deg;
@@ -1162,6 +1182,10 @@
   --player-attack-windup-skew: -2deg;
   --player-dodge-opacity: 0.62;
   --player-cast-duration: 620ms;
+  --player-cast-echo-opacity: 0.38;
+  --player-cast-echo-rotate: -6deg;
+  --player-cast-echo-x: 3px;
+  --player-cast-echo-y: -18px;
   --player-cast-lift: -18px;
   --player-cast-scale-y: 1.07;
   --player-cast-tilt: -2deg;
@@ -1187,6 +1211,10 @@
   --player-attack-strike-skew: 5deg;
   --player-attack-windup-lift: -5px;
   --player-cast-duration: 470ms;
+  --player-cast-echo-opacity: 0.27;
+  --player-cast-echo-rotate: 4deg;
+  --player-cast-echo-x: 6px;
+  --player-cast-echo-y: -10px;
   --player-cast-lift: -10px;
   --player-cast-scale-y: 1.04;
   --player-cast-tilt: 2deg;
@@ -1323,6 +1351,14 @@
 
 .player.hasSprite.isAttacking .playerSprite::after {
   animation: playerSpriteSmear var(--player-attack-duration) cubic-bezier(0.2, 0.92, 0.24, 1) both;
+}
+
+.player.hasSprite.isCasting:not(.isAttacking) .playerSprite::after {
+  animation: playerSpriteCastEcho var(--player-cast-duration) ease-in-out both;
+  filter:
+    blur(1.4px)
+    drop-shadow(0 0 10px var(--combat-ability-color))
+    brightness(1.24);
 }
 
 .player:not(.hasSprite).isMoving span {
@@ -2036,6 +2072,29 @@
   100% {
     opacity: 0;
     transform: translate(0, 0) scaleX(1);
+  }
+}
+
+@keyframes playerSpriteCastEcho {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.98) rotate(0deg);
+  }
+
+  44% {
+    opacity: var(--player-cast-echo-opacity);
+    transform: translate(var(--player-cast-echo-x), var(--player-cast-echo-y)) scale(1.03) rotate(var(--player-cast-echo-rotate));
+  }
+
+  72% {
+    opacity: var(--player-cast-echo-opacity);
+    transform: translate(var(--player-cast-echo-x), calc(var(--player-cast-echo-y) + 5px)) scale(1.01)
+      rotate(var(--player-cast-echo-rotate));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.99) rotate(0deg);
   }
 }
 
