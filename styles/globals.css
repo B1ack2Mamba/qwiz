@@ -676,6 +676,25 @@ button {
   background: #f9fbf8;
 }
 
+.point-history-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.amount-positive,
+.amount-negative {
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.amount-positive {
+  color: var(--teal-dark);
+}
+
+.amount-negative {
+  color: var(--rose);
+}
+
 .activity-row {
   grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
@@ -1003,6 +1022,10 @@ button {
 
   .activity-row {
     grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .point-history-row {
+    grid-template-columns: 1fr;
   }
 
   .activity-row .status-pill {

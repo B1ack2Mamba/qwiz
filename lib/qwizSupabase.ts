@@ -51,6 +51,15 @@ type AttemptRow = {
   created_at: string;
 };
 
+type PointTransactionRow = {
+  id: string;
+  employee_id: string;
+  amount: number;
+  reason: string;
+  source_type: string;
+  created_at: string;
+};
+
 type AwardRow = {
   week_start: string;
   winners: unknown;
@@ -68,6 +77,16 @@ export type RecentAttempt = {
   createdAt: string;
 };
 
+export type RecentPointTransaction = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  amount: number;
+  reason: string;
+  sourceType: string;
+  createdAt: string;
+};
+
 export type AdminSummary = {
   state: AppState;
   stats: {
@@ -79,6 +98,7 @@ export type AdminSummary = {
     totalPoints: number;
   };
   recentAttempts: RecentAttempt[];
+  recentPointTransactions: RecentPointTransaction[];
 };
 
 export async function loadQwizState(
@@ -135,7 +155,7 @@ export async function loadQwizState(
 
 export async function loadAdminSummary(supabase: SupabaseClient, todayKey: string): Promise<AdminSummary> {
   const state = await loadQwizState(supabase, todayKey);
-  const [attemptsTodayResult, awardsResult, recentAttemptsResult] = await Promise.all([
+  const [attemptsTodayResult, awardsResult, recentAttemptsResult, recentTransactionsResult] = await Promise.all([
     supabase.from("qwiz_daily_attempts").select("*", { count: "exact", head: true }).eq("date_key", todayKey),
     supabase.from("qwiz_weekly_awards").select("*", { count: "exact", head: true }),
     supabase
@@ -143,11 +163,17 @@ export async function loadAdminSummary(supabase: SupabaseClient, todayKey: strin
       .select("employee_id, quiz_id, score, correct_count, accuracy, answers, streak_after, created_at")
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("qwiz_point_transactions")
+      .select("id, employee_id, amount, reason, source_type, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   assertSupabaseResult("attempts_today_count", attemptsTodayResult.error);
   assertSupabaseResult("weekly_awards_count", awardsResult.error);
   assertSupabaseResult("recent_attempts", recentAttemptsResult.error);
+  assertSupabaseResult("recent_point_transactions", recentTransactionsResult.error);
 
   const employeeById = new Map(state.employees.map((employee) => [employee.id, employee]));
   const quizById = new Map(state.quizzes.map((quiz) => [quiz.id, quiz]));
@@ -161,6 +187,17 @@ export async function loadAdminSummary(supabase: SupabaseClient, todayKey: strin
     accuracy: attempt.accuracy,
     createdAt: attempt.created_at,
   }));
+  const recentPointTransactions = ((recentTransactionsResult.data || []) as PointTransactionRow[]).map(
+    (transaction) => ({
+      id: transaction.id,
+      employeeId: transaction.employee_id,
+      employeeName: employeeById.get(transaction.employee_id)?.name || transaction.employee_id,
+      amount: transaction.amount,
+      reason: transaction.reason,
+      sourceType: transaction.source_type,
+      createdAt: transaction.created_at,
+    }),
+  );
 
   return {
     state,
@@ -173,6 +210,7 @@ export async function loadAdminSummary(supabase: SupabaseClient, todayKey: strin
       totalPoints: state.employees.reduce((total, employee) => total + employee.totalPoints, 0),
     },
     recentAttempts,
+    recentPointTransactions,
   };
 }
 

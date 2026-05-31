@@ -10,7 +10,7 @@ import {
   getTodayKey,
   getWeekStartKey,
 } from "../../lib/qwizData";
-import type { RecentAttempt } from "../../lib/qwizSupabase";
+import type { RecentAttempt, RecentPointTransaction } from "../../lib/qwizSupabase";
 
 type AdminSummary = {
   state: AppState;
@@ -23,6 +23,7 @@ type AdminSummary = {
     totalPoints: number;
   };
   recentAttempts: RecentAttempt[];
+  recentPointTransactions: RecentPointTransaction[];
 };
 
 type EmployeeForm = {
@@ -36,6 +37,13 @@ type PrizeForm = {
   place: number;
   title: string;
   detail: string;
+};
+
+type PointsForm = {
+  amount: number;
+  employeeId: string;
+  includeWeekly: boolean;
+  reason: string;
 };
 
 type QuizForm = {
@@ -79,6 +87,7 @@ export default function AdminPage() {
       totalPoints: 0,
     },
     recentAttempts: [],
+    recentPointTransactions: [],
   });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -87,6 +96,12 @@ export default function AdminPage() {
   );
   const [resetWeeklyPoints, setResetWeeklyPoints] = useState(true);
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>({ id: "", name: "", role: "", avatar: "" });
+  const [pointsForm, setPointsForm] = useState<PointsForm>({
+    amount: 25,
+    employeeId: "",
+    includeWeekly: true,
+    reason: "Бонус",
+  });
   const [prizeForm, setPrizeForm] = useState<PrizeForm>({ place: 1, title: "", detail: "" });
   const [quizForm, setQuizForm] = useState<QuizForm>({
     id: "",
@@ -244,6 +259,38 @@ export default function AdminPage() {
     }
   }
 
+  async function submitPoints(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      const employeeId = pointsForm.employeeId || rankedEmployees[0]?.id || "";
+      const response = await fetch("/api/admin/points", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminPin ? { "x-admin-pin": adminPin } : {}),
+        },
+        body: JSON.stringify({
+          ...pointsForm,
+          employeeId,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || payload.error || "Не удалось изменить баллы.");
+      }
+
+      const employeeName = rankedEmployees.find((employee) => employee.id === employeeId)?.name || employeeId;
+      setMessage(`${pointsForm.amount > 0 ? "Начислено" : "Списано"} ${Math.abs(pointsForm.amount)} баллов: ${employeeName}.`);
+      setPointsForm((current) => ({ ...current, amount: 25, reason: "Бонус" }));
+      await loadSummary();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось изменить баллы.");
+    }
+  }
+
   async function submitPrize(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -289,6 +336,7 @@ export default function AdminPage() {
       role: employee.role,
       avatar: employee.avatar,
     });
+    setPointsForm((current) => ({ ...current, employeeId: employee.id }));
   }
 
   function editPrize(prize: Prize) {
@@ -421,6 +469,91 @@ export default function AdminPage() {
             >
               Закрыть неделю
             </button>
+          </div>
+        </section>
+
+        <section className="panel admin-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">Баллы</span>
+              <h2>Корректировка</h2>
+            </div>
+          </div>
+
+          <form className="admin-form" onSubmit={submitPoints}>
+            <div className="form-row">
+              <label>
+                Сотрудник
+                <select
+                  className="text-input"
+                  onChange={(event) => setPointsForm((current) => ({ ...current, employeeId: event.target.value }))}
+                  required
+                  value={pointsForm.employeeId || rankedEmployees[0]?.id || ""}
+                >
+                  {rankedEmployees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Баллы
+                <input
+                  className="text-input"
+                  max={10000}
+                  min={-10000}
+                  onChange={(event) =>
+                    setPointsForm((current) => ({ ...current, amount: Number(event.target.value) }))
+                  }
+                  required
+                  type="number"
+                  value={pointsForm.amount}
+                />
+              </label>
+              <label>
+                Причина
+                <input
+                  className="text-input"
+                  maxLength={160}
+                  onChange={(event) => setPointsForm((current) => ({ ...current, reason: event.target.value }))}
+                  required
+                  value={pointsForm.reason}
+                />
+              </label>
+            </div>
+            <div className="admin-inline-actions">
+              <label className="admin-check">
+                <input
+                  checked={pointsForm.includeWeekly}
+                  onChange={(event) =>
+                    setPointsForm((current) => ({ ...current, includeWeekly: event.target.checked }))
+                  }
+                  type="checkbox"
+                />
+                Влияет на неделю
+              </label>
+              <button className="primary-button compact" type="submit">
+                Применить
+              </button>
+            </div>
+          </form>
+
+          <div className="history-list">
+            {summary.recentPointTransactions.length === 0 ? (
+              <div className="empty-state">Корректировок пока нет.</div>
+            ) : (
+              summary.recentPointTransactions.slice(0, 6).map((transaction) => (
+                <div className="history-row point-history-row" key={transaction.id}>
+                  <strong>{transaction.employeeName}</strong>
+                  <span>{transaction.reason}</span>
+                  <span className={transaction.amount > 0 ? "amount-positive" : "amount-negative"}>
+                    {transaction.amount > 0 ? "+" : ""}
+                    {formatNumber(transaction.amount)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </section>
 
