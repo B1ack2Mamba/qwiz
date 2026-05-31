@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
+    "apply:supabase": "node scripts/apply-supabase-migration.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
     "seed:supabase": "node scripts/seed-supabase.mjs"
   },
