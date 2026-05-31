@@ -17,6 +17,24 @@ export type TrainingReward = {
   rankBonusPercent: number;
 };
 
+export type BattleReadinessTierId = "patrol" | "hold" | "counter" | "breakthrough";
+
+export type BattleReadinessTier = {
+  id: BattleReadinessTierId;
+  name: string;
+  stance: string;
+  threshold: number;
+  description: string;
+  reward: string;
+};
+
+export type BattleReadinessPlan = {
+  readiness: number;
+  tier: BattleReadinessTier;
+  nextTier?: BattleReadinessTier;
+  pointsToNext: number;
+};
+
 export type Profession = {
   id: ProfessionId;
   name: string;
@@ -93,9 +111,44 @@ type LegacyGameProfile = Partial<GameProfile> & {
 const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "workbench", "banner"];
 const DEFAULT_TEAM_DIRECTIVE_ID: TeamDirectiveId = "command";
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
+const BATTLE_READINESS_TARGET = 140;
 
 export const PROFESSION_SEASON_LENGTH_DAYS = 14;
 export const DAILY_COMBAT_TRAINING_REWARD_LIMIT = 3;
+export const battleReadinessTiers: BattleReadinessTier[] = [
+  {
+    id: "patrol",
+    name: "Дозор",
+    stance: "Сдержать первые волны",
+    threshold: 0,
+    description: "Отряд держит внешние маршруты и собирает данные о нападении.",
+    reward: "Базовая защита",
+  },
+  {
+    id: "hold",
+    name: "Оборона",
+    stance: "Укрепить рубеж",
+    threshold: 35,
+    description: "Команда закрывает слабые точки и готовит общий резерв.",
+    reward: "+провиант после битвы",
+  },
+  {
+    id: "counter",
+    name: "Контратака",
+    stance: "Разбить плотную волну",
+    threshold: 65,
+    description: "Группа уже может перехватывать элитных врагов до входа в лагерь.",
+    reward: "+эфир и схемы",
+  },
+  {
+    id: "breakthrough",
+    name: "Прорыв",
+    stance: "Забрать инициативу",
+    threshold: 90,
+    description: "Отряд готов не только защищаться, но и выбить источник атаки.",
+    reward: "Редкие материалы",
+  },
+];
 export const professionChangeCost: Partial<ResourceBag> = {
   ore: 2,
   essence: 2,
@@ -438,6 +491,28 @@ export function getPower(profile: GameProfile) {
 
 export function getDungeonPower(profile: GameProfile, dungeon: Dungeon) {
   return getPower(profile) + (profile.professionId === dungeon.specialist ? 15 : 0);
+}
+
+export function getMonthlyBattleReadiness(profile: GameProfile, teamSize: number) {
+  const safeTeamSize = Math.max(0, Math.floor(teamSize));
+  return Math.min(100, Math.round(((profile.battleContribution + safeTeamSize * 8) / BATTLE_READINESS_TARGET) * 100));
+}
+
+export function getBattleReadinessPlan(profile: GameProfile, teamSize: number): BattleReadinessPlan {
+  const readiness = getMonthlyBattleReadiness(profile, teamSize);
+  const tier =
+    battleReadinessTiers
+      .slice()
+      .reverse()
+      .find((candidate) => readiness >= candidate.threshold) || battleReadinessTiers[0];
+  const nextTier = battleReadinessTiers.find((candidate) => candidate.threshold > readiness);
+
+  return {
+    readiness,
+    tier,
+    nextTier,
+    pointsToNext: nextTier ? nextTier.threshold - readiness : 0,
+  };
 }
 
 export function getEnhancementCost(profile: GameProfile, enhancement: Enhancement) {

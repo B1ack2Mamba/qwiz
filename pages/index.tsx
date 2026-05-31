@@ -40,6 +40,7 @@ import {
   forgeEnhancement,
   getBattleContributionCost,
   getBattleContributionGain,
+  getBattleReadinessPlan,
   getDungeonPower,
   getEnhancement,
   getEnhancementCost,
@@ -120,9 +121,8 @@ export default function HomePage() {
   const freeProfessionChangeAvailable =
     profile && professionSeason ? profile.professionChangeSeasonKey !== professionSeason.key : false;
   const heroPower = profile ? getPower(profile) : 0;
-  const monthlyReadiness = profile
-    ? Math.min(100, Math.round(((profile.battleContribution + rankedEmployees.length * 8) / 140) * 100))
-    : 0;
+  const battlePlan = profile ? getBattleReadinessPlan(profile, rankedEmployees.length) : null;
+  const monthlyReadiness = battlePlan?.readiness || 0;
   const battleContributionCost = profile ? getBattleContributionCost(profile) : {};
   const battleContributionGain = profile ? getBattleContributionGain(profile) : 0;
   const battleContributionReady = profile ? canContributeToBattle(profile) : false;
@@ -733,6 +733,22 @@ export default function HomePage() {
               </svg>
               <div className="battle-readiness" style={{ width: `${monthlyReadiness}%` }} />
             </div>
+            {battlePlan && (
+              <div className="battle-plan">
+                <div>
+                  <span className="section-kicker">План битвы</span>
+                  <strong>{battlePlan.tier.name}</strong>
+                  <span>{battlePlan.tier.description}</span>
+                </div>
+                <div className="battle-plan-meta">
+                  <span className="battle-plan-stance">{battlePlan.tier.stance}</span>
+                  <span>
+                    {battlePlan.nextTier ? `Следующий план: ${battlePlan.nextTier.name} · ${battlePlan.pointsToNext}%` : "Пик готовности"}
+                  </span>
+                  <span>{battlePlan.tier.reward}</span>
+                </div>
+              </div>
+            )}
             <div className="battle-actions">
               <button className="primary-button" disabled={!battleContributionReady} onClick={runBattleContribution} type="button">
                 Внести вклад

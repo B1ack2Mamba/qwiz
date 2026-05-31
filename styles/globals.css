@@ -1877,11 +1877,65 @@ button {
   background: var(--amber);
 }
 
+.battle-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.battle-plan strong,
+.battle-plan span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.battle-plan strong {
+  display: block;
+  margin: 2px 0 4px;
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.battle-plan span:not(.section-kicker) {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.battle-plan-meta {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+  text-align: right;
+}
+
+.battle-plan-meta .battle-plan-stance {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--teal-dark);
+  font-weight: 800;
+}
+
 .battle-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+
+@media (max-width: 680px) {
+  .battle-plan {
+    grid-template-columns: 1fr;
+  }
+
+  .battle-plan-meta {
+    justify-items: start;
+    text-align: left;
+  }
 }
 
 .toast {
