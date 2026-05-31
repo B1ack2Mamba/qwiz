@@ -8,7 +8,21 @@ type CharacterSpritePreviewProps = {
 };
 
 const characterSpriteSheets: Partial<Record<ProfessionId, string>> = {
+  pathfinder: "/characters/essen-pathfinder-route-stages.png",
+  miner: "/characters/essen-miner-pickaxe-stages.png",
   warden: "/characters/essen-hunter-blade-stages.png",
+  artisan: "/characters/essen-artisan-shield-stages.png",
+  enchanter: "/characters/essen-enchanter-staff-stages.png",
+  tactician: "/characters/essen-tactician-banner-stages.png",
+};
+
+const characterSpriteLabels: Partial<Record<ProfessionId, string>> = {
+  pathfinder: "ESSEN pathfinder character with evolving route cutter",
+  miner: "ESSEN miner character with evolving pickaxe",
+  warden: "ESSEN hunter character with evolving blade",
+  artisan: "ESSEN artisan character with evolving shield",
+  enchanter: "ESSEN enchanter character with evolving staff",
+  tactician: "ESSEN tactician character with evolving banner",
 };
 
 export function hasCharacterSprite(professionId: ProfessionId) {
@@ -30,7 +44,7 @@ export function CharacterSpritePreview({ professionId, selected = false, weaponL
 
   return (
     <span
-      aria-label="ESSEN hunter character with evolving blade"
+      aria-label={characterSpriteLabels[professionId]}
       className={`character-sprite-preview${selected ? " is-selected" : ""}`}
       role="img"
       style={style}
