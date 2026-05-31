@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ProfessionAvatar3D } from "../components/ProfessionAvatar3D";
 import {
   AppState,
   createInitialState,
@@ -484,7 +485,7 @@ export default function HomePage() {
                     onClick={() => runProfessionChange(item.id)}
                     type="button"
                   >
-                    <span className="profession-crest">{item.crest}</span>
+                    <ProfessionAvatar3D professionId={item.id} selected={profile.professionId === item.id} />
                     <span>
                       <strong>{item.name}</strong>
                       <span>{item.function}</span>

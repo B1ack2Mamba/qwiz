@@ -1011,10 +1011,10 @@ button {
 
 .profession-card {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: minmax(112px, 0.44fr) minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  min-height: 112px;
+  min-height: 190px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1049,8 +1049,24 @@ button {
 }
 
 .profession-card small {
-  grid-column: 1 / -1;
+  grid-column: 2;
   font-weight: 800;
+}
+
+.profession-avatar-3d {
+  display: block;
+  grid-row: 1 / span 3;
+  width: 100%;
+  max-width: 148px;
+  aspect-ratio: 1;
+  justify-self: center;
+  pointer-events: none;
+}
+
+.profession-avatar-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .profession-change-note {
@@ -1546,12 +1562,16 @@ button {
   }
 
   .profession-card {
-    grid-template-columns: 42px minmax(0, 1fr);
-    min-height: 104px;
+    grid-template-columns: minmax(94px, 0.42fr) minmax(0, 1fr);
+    min-height: 172px;
   }
 
   .profession-rule {
     grid-template-columns: 1fr;
+  }
+
+  .profession-avatar-3d {
+    max-width: 118px;
   }
 
   .profession-crest {
