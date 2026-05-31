@@ -44,6 +44,7 @@ import {
   getDungeonPower,
   getEnhancement,
   getEnhancementCost,
+  getEnhancementOutcome,
   getMissionOutcome,
   getProfessionChangeCost,
   getProfessionChangeMode,
@@ -912,6 +913,7 @@ function EnhancementCard({
 }) {
   const stacks = profile.enhancements[enhancement.id] || 0;
   const cost = getEnhancementCost(profile, enhancement);
+  const outcome = getEnhancementOutcome(profile, enhancement);
   const canForge = canForgeEnhancement(profile, enhancement);
 
   return (
@@ -945,6 +947,13 @@ function EnhancementCard({
       <div>
         <span className="section-kicker">Цена</span>
         <RewardLine prefix="-" rewards={cost} />
+      </div>
+      <div>
+        <span className="section-kicker">Итог ковки</span>
+        <RewardLine
+          extras={[`+${outcome.powerGain} сила`, `+${outcome.xp} XP`, `+${outcome.battleContribution} готовность`]}
+          rewards={outcome.resources}
+        />
       </div>
       <button className="secondary-button compact" disabled={!canForge} onClick={onForge} type="button">
         {canForge ? "Усилить" : "Ресурсы"}

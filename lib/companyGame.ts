@@ -23,6 +23,13 @@ export type MissionOutcome = {
   battleContribution: number;
 };
 
+export type EnhancementOutcome = {
+  xp: number;
+  resources: Partial<ResourceBag>;
+  battleContribution: number;
+  powerGain: number;
+};
+
 export type BattleReadinessTierId = "patrol" | "hold" | "counter" | "breakthrough";
 
 export type BattleReadinessTier = {
@@ -552,6 +559,17 @@ export function canForgeEnhancement(profile: GameProfile, enhancement: Enhanceme
   return hasResources(profile.resources, getEnhancementCost(profile, enhancement));
 }
 
+export function getEnhancementOutcome(profile: GameProfile, enhancement: Enhancement): EnhancementOutcome {
+  return {
+    xp: 12 + enhancement.power,
+    resources: compactResources({
+      essence: profile.professionId === "enchanter" ? 1 : 0,
+    }),
+    battleContribution: enhancement.id === "banner" ? 4 : 2,
+    powerGain: enhancement.power,
+  };
+}
+
 export function hasDungeonRequirements(profile: GameProfile, dungeon: Dungeon) {
   return (Object.entries(dungeon.requiredEnhancements) as Array<[EnhancementId, number]>).every(([id, amount]) => {
     return (profile.enhancements[id] || 0) >= amount;
@@ -603,6 +621,7 @@ export function completeMission(profile: GameProfile, mission: DailyMission) {
 
 export function forgeEnhancement(profile: GameProfile, enhancement: Enhancement) {
   const cost = getEnhancementCost(profile, enhancement);
+  const outcome = getEnhancementOutcome(profile, enhancement);
   if (!hasResources(profile.resources, cost)) {
     return profile;
   }
@@ -610,12 +629,9 @@ export function forgeEnhancement(profile: GameProfile, enhancement: Enhancement)
   const next = cloneProfile(profile);
   removeResources(next.resources, cost);
   next.enhancements[enhancement.id] += 1;
-  next.xp += 12 + enhancement.power;
-  next.battleContribution += enhancement.id === "banner" ? 4 : 2;
-
-  if (next.professionId === "enchanter") {
-    next.resources.essence += 1;
-  }
+  next.xp += outcome.xp;
+  next.battleContribution += outcome.battleContribution;
+  addRewards(next.resources, outcome.resources);
 
   applyLevelUps(next);
   next.log.unshift(`Усиление создано: ${enhancement.name} x${next.enhancements[enhancement.id]}.`);
