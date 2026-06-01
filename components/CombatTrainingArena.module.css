@@ -2370,6 +2370,14 @@
   color: var(--teal-dark);
 }
 
+.rankAdvice {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .rewardItems {
   display: flex;
   flex-wrap: wrap;

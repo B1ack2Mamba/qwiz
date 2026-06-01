@@ -228,6 +228,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const isLowStamina = combatState.status === "fighting" && combatState.player.stamina < combatState.player.dodgeCost;
   const rankSummary = getCombatTrainingRank(combatState);
   const rankGoal = getNextRankGoal(rankSummary.score);
+  const rankAdvice = getCombatRankAdvice(combatState);
   const reward = getCombatTrainingReward(profile, combatState.wave, combatState.defeatedCount, rankSummary.rank);
   const rewardClaimed = claimedWaves.has(combatState.wave);
   const rewardsLeft = Math.max(0, DAILY_COMBAT_TRAINING_REWARD_LIMIT - profile.combatTrainingRewardsClaimed);
@@ -444,6 +445,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                   <span>Урон {combatState.damageDealt}</span>
                   <span>Получено {combatState.damageTaken}</span>
                 </div>
+                <span className={styles.rankAdvice}>{rankAdvice}</span>
                 <div className={styles.rewardItems}>
                   {reward.rankBonusPercent > 0 && <span>+{reward.rankBonusPercent}% ранг</span>}
                   <span>+{reward.xp} XP</span>
@@ -478,6 +480,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                   <span>Урон {combatState.damageDealt}</span>
                   <span>Получено {combatState.damageTaken}</span>
                 </div>
+                <span className={styles.rankAdvice}>{rankAdvice}</span>
               </div>
               <button className={styles.nextWaveButton} onClick={resetTraining} type="button">
                 Повторить
@@ -528,6 +531,26 @@ function getNextRankGoal(score: number) {
   }
 
   return `До B: ${50 - score} очк.`;
+}
+
+function getCombatRankAdvice(state: CombatState) {
+  if (state.status === "defeat") {
+    return "Совет: переживи волну до конца, победа дает главный прирост ранга.";
+  }
+
+  if (state.player.hp / state.player.maxHp < 0.65) {
+    return "Совет: сохрани больше HP, полученный урон снижает итоговый ранг.";
+  }
+
+  if (state.maxCombo < 5) {
+    return "Совет: держи комбо до x5, чтобы поднять бонус ранга.";
+  }
+
+  if (state.precisionDodges < 2) {
+    return "Совет: точные уклонения открывают контратаку и добавляют очки.";
+  }
+
+  return "Совет: ускоряй зачистку и переходи к следующей волне за более плотной добычей.";
 }
 
 function readMoveVector(keys: Set<string>, touchMove: Vector2): Vector2 {
