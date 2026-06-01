@@ -1926,6 +1926,17 @@ button {
   color: var(--teal-dark);
 }
 
+.dungeon-lock-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dungeon-lock-hint.is-ready {
+  color: var(--teal-dark);
+}
+
 .dungeon-row strong,
 .dungeon-row span,
 .team-row strong,

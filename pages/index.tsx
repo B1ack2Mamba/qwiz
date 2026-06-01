@@ -43,6 +43,7 @@ import {
   getBattleContributionGain,
   getBattleReadinessPlan,
   getCompanyObjective,
+  getDungeonLockHint,
   getDungeonOutcome,
   getDungeonPower,
   getEnhancement,
@@ -1010,6 +1011,7 @@ function DungeonRow({
   const outcome = getDungeonOutcome(dungeon);
   const powerMet = currentPower >= dungeon.requiredPower;
   const canEnter = canEnterDungeon(profile, dungeon);
+  const lockHint = getDungeonLockHint(profile, dungeon);
   const actionLabel = completed ? "Зачищено" : profile.energy <= 0 ? "Нет энергии" : canEnter ? "Пройти" : "Закрыто";
 
   return (
@@ -1020,6 +1022,7 @@ function DungeonRow({
         <strong>{dungeon.name}</strong>
         <span>{dungeon.description}</span>
         <RequirementLine profile={profile} requirements={dungeon.requiredEnhancements} />
+        <span className={`dungeon-lock-hint${canEnter ? " is-ready" : ""}`}>{lockHint}</span>
       </div>
       <div className="dungeon-status">
         <span className={powerMet ? "is-met" : ""}>

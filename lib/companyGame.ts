@@ -652,6 +652,31 @@ export function canEnterDungeon(profile: GameProfile, dungeon: Dungeon) {
   );
 }
 
+export function getDungeonLockHint(profile: GameProfile, dungeon: Dungeon) {
+  if (profile.completedDungeons.includes(dungeon.id)) {
+    return "Уже зачищено";
+  }
+
+  if (profile.energy <= 0) {
+    return "Нужна энергия для спуска";
+  }
+
+  const missingRequirements = (Object.entries(dungeon.requiredEnhancements) as Array<[EnhancementId, number]>).filter(
+    ([id, amount]) => (profile.enhancements[id] || 0) < amount,
+  );
+  if (missingRequirements.length > 0) {
+    const [id, amount] = missingRequirements[0];
+    return `Нужно усиление: ${getEnhancement(id).name} ${profile.enhancements[id] || 0}/${amount}`;
+  }
+
+  const missingPower = dungeon.requiredPower - getDungeonPower(profile, dungeon);
+  if (missingPower > 0) {
+    return `Нужно еще +${missingPower} силы`;
+  }
+
+  return "Готово к спуску";
+}
+
 export function getDungeonOutcome(dungeon: Dungeon): DungeonOutcome {
   return {
     xp: dungeon.xp,
