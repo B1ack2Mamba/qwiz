@@ -19,6 +19,7 @@ export type EnemyAttackKind = "slash" | "blast" | "rush" | "shock";
 export type CombatRankBreakdown = {
   clearScore: number;
   hpScore: number;
+  defenseScore: number;
   comboScore: number;
   precisionScore: number;
   damagePenalty: number;
@@ -179,16 +180,18 @@ export function getCombatTrainingRank(state: CombatState): { rank: CombatRank; s
 }
 
 export function getCombatTrainingRankBreakdown(state: CombatState): CombatRankBreakdown {
-  const clearScore = state.status === "victory" ? 35 : state.status === "defeat" ? 0 : 12;
+  const clearScore = state.status === "victory" ? 30 : state.status === "defeat" ? 0 : 10;
   const hpScore = Math.round(clamp(state.player.hp / state.player.maxHp, 0, 1) * 25);
+  const defenseScore = Math.round(clamp(state.defenseHp / Math.max(1, state.defenseMaxHp), 0, 1) * 10);
   const comboScore = Math.min(20, state.maxCombo * 4);
   const precisionScore = Math.min(15, state.precisionDodges * 5);
   const damagePenalty = Math.min(20, Math.floor((state.damageTaken / state.player.maxHp) * 30));
-  const score = clamp(clearScore + hpScore + comboScore + precisionScore - damagePenalty, 0, 100);
+  const score = clamp(clearScore + hpScore + defenseScore + comboScore + precisionScore - damagePenalty, 0, 100);
 
   return {
     clearScore,
     hpScore,
+    defenseScore,
     comboScore,
     precisionScore,
     damagePenalty,

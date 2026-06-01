@@ -550,6 +550,7 @@ function RankBreakdown({ breakdown }: { breakdown: ReturnType<typeof getCombatTr
     <div className={styles.rankBreakdown} aria-label="Разбор очков ранга">
       <span>Зачистка +{breakdown.clearScore}</span>
       <span>HP +{breakdown.hpScore}</span>
+      <span>База +{breakdown.defenseScore}</span>
       <span>Комбо +{breakdown.comboScore}</span>
       <span>Точность +{breakdown.precisionScore}</span>
       {breakdown.damagePenalty > 0 && <span className={styles.rankPenalty}>Урон -{breakdown.damagePenalty}</span>}
