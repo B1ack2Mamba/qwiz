@@ -227,6 +227,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const isCriticalHealth = combatState.status === "fighting" && combatState.player.hp / combatState.player.maxHp <= 0.35;
   const isLowStamina = combatState.status === "fighting" && combatState.player.stamina < combatState.player.dodgeCost;
   const rankSummary = getCombatTrainingRank(combatState);
+  const rankGoal = getNextRankGoal(rankSummary.score);
   const reward = getCombatTrainingReward(profile, combatState.wave, combatState.defeatedCount, rankSummary.rank);
   const rewardClaimed = claimedWaves.has(combatState.wave);
   const rewardsLeft = Math.max(0, DAILY_COMBAT_TRAINING_REWARD_LIMIT - profile.combatTrainingRewardsClaimed);
@@ -431,6 +432,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                 <div className={styles.rankSummary}>
                   <strong>{rankSummary.rank}</strong>
                   <span>{rankSummary.score} очк.</span>
+                  <span className={styles.rankGoal}>{rankGoal}</span>
                   <span>Лучшее x{combatState.maxCombo}</span>
                   <span>Точные {combatState.precisionDodges}</span>
                   <span>Урон {combatState.damageDealt}</span>
@@ -463,6 +465,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                 <div className={styles.rankSummary}>
                   <strong>{rankSummary.rank}</strong>
                   <span>{rankSummary.score} очк.</span>
+                  <span className={styles.rankGoal}>{rankGoal}</span>
                   <span>Лучшее x{combatState.maxCombo}</span>
                   <span>Точные {combatState.precisionDodges}</span>
                   <span>Урон {combatState.damageDealt}</span>
@@ -502,6 +505,22 @@ function Stat({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function getNextRankGoal(score: number) {
+  if (score >= 85) {
+    return "S-ранг: максимум";
+  }
+
+  if (score >= 70) {
+    return `До S: ${85 - score} очк.`;
+  }
+
+  if (score >= 50) {
+    return `До A: ${70 - score} очк.`;
+  }
+
+  return `До B: ${50 - score} очк.`;
 }
 
 function readMoveVector(keys: Set<string>, touchMove: Vector2): Vector2 {

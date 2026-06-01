@@ -2365,6 +2365,11 @@
   color: var(--blue);
 }
 
+.rankSummary .rankGoal {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
 .rewardItems {
   display: flex;
   flex-wrap: wrap;
