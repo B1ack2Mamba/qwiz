@@ -84,20 +84,26 @@ async function validateCharacterFile(filePath, professionId) {
       filePath,
       imageCount: 0,
       materialNames: [],
+      meshNames: [],
       nodeNames: [],
+      primitiveCount: 0,
       professionId,
       stageNodes: [],
       textureCount: 0,
+      triangleCount: 0,
       warnings: [],
     };
   }
 
   const animations = (gltf.animations || []).map((item, index) => item.name || `animation_${index}`);
   const materialNames = (gltf.materials || []).map((item, index) => item.name || `material_${index}`);
+  const meshNames = (gltf.meshes || []).map((item, index) => item.name || `mesh_${index}`);
   const nodeNames = (gltf.nodes || []).map((item, index) => item.name || `node_${index}`);
   const stageNodes = nodeNames.filter((name) => getStageIndexFromName(name) !== null);
   const imageCount = (gltf.images || []).length;
+  const primitiveCount = (gltf.meshes || []).reduce((total, mesh) => total + (mesh.primitives || []).length, 0);
   const textureCount = (gltf.textures || []).length;
+  const triangleCount = countTriangles(gltf);
   const hasIdleClip = animations.some((name) => includesAnyNormalized(name, ["preview_idle", "idle", "stance", "breath", "loop"]));
 
   if ((gltf.scenes || []).length === 0) {
@@ -110,6 +116,10 @@ async function validateCharacterFile(filePath, professionId) {
 
   if ((gltf.meshes || []).length === 0) {
     warnings.push("no meshes found");
+  }
+
+  if (triangleCount > 120000) {
+    warnings.push(`high triangle count for UI preview: ${triangleCount}`);
   }
 
   if (materialNames.length === 0) {
@@ -142,10 +152,13 @@ async function validateCharacterFile(filePath, professionId) {
     filePath,
     imageCount,
     materialNames,
+    meshNames,
     nodeNames,
+    primitiveCount,
     professionId,
     stageNodes,
     textureCount,
+    triangleCount,
     warnings,
   };
 }
@@ -208,6 +221,8 @@ function printValidationResult(result) {
   console.log(`\n${result.professionId}`);
   console.log(`  file: ${path.relative(rootDir, result.filePath)}`);
   console.log(`  nodes: ${result.nodeNames.length}`);
+  console.log(`  meshes/primitives: ${result.meshNames.length}/${result.primitiveCount}`);
+  console.log(`  triangles: ${result.triangleCount || "unknown"}`);
   console.log(`  materials: ${result.materialNames.length ? result.materialNames.join(", ") : "none"}`);
   console.log(`  textures/images: ${result.textureCount}/${result.imageCount}`);
   console.log(`  animations: ${result.animations.length ? result.animations.join(", ") : "none"}`);
@@ -235,7 +250,41 @@ function toPublicRelativePath(value) {
     return null;
   }
 
-  return value.replace(/^\/+/, "public/");
+  const normalized = value.replace(/\\/g, "/").replace(/^\/+/, "");
+
+  if (normalized.startsWith("public/")) {
+    return normalized;
+  }
+
+  return `public/${normalized}`;
+}
+
+function countTriangles(gltf) {
+  let total = 0;
+
+  for (const mesh of gltf.meshes || []) {
+    for (const primitive of mesh.primitives || []) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) {
+        continue;
+      }
+
+      const indexAccessor = primitive.indices !== undefined ? gltf.accessors?.[primitive.indices] : null;
+
+      if (indexAccessor?.count) {
+        total += Math.floor(indexAccessor.count / 3);
+        continue;
+      }
+
+      const positionAccessorIndex = primitive.attributes?.POSITION;
+      const positionAccessor = positionAccessorIndex !== undefined ? gltf.accessors?.[positionAccessorIndex] : null;
+
+      if (positionAccessor?.count) {
+        total += Math.floor(positionAccessor.count / 3);
+      }
+    }
+  }
+
+  return total;
 }
 
 function getStageIndexFromName(name) {

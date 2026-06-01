@@ -41,7 +41,7 @@ Or check a single file before enabling it:
 node scripts/validate-character-glb.mjs public/models/characters/pathfinder/character.glb
 ```
 
-The validator reports node count, material names, texture/image counts, animation clip names, and weapon stage nodes.
+The validator reports node count, mesh/primitive counts, estimated triangles, material names, texture/image counts, animation clip names, and weapon stage nodes.
 
 ## Blender Export Contract
 
