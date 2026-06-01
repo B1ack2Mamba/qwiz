@@ -24,14 +24,17 @@ import {
   EnhancementId,
   CombatTrainingRewardRank,
   GameProfile,
+  PathfinderExpedition,
   ProfessionId,
   TeamDirectiveId,
   battleReadinessTiers,
   canContributeToBattle,
   canEnterDungeon,
   canForgeEnhancement,
+  canRunPathfinderExpedition,
   changeProfession,
   claimCombatTrainingReward,
+  completePathfinderExpedition,
   completeMission,
   contributeToBattle,
   createGameProfile,
@@ -47,17 +50,23 @@ import {
   getDungeonLockHint,
   getDungeonOutcome,
   getDungeonPower,
+  getEquipment,
   getEnhancement,
   getEnhancementCost,
   getEnhancementOutcome,
   getEnhancementShortfall,
   getMissionOutcome,
+  getPathfinderExpeditionLockHint,
+  getPathfinderExpeditionOutcome,
+  getPathfinderExpeditionPower,
+  getPathfinderMiniGame,
   getProfessionChangeCost,
   getProfessionChangeMode,
   getProfessionSeason,
   getTeamDirective,
   getPower,
   getProfession,
+  pathfinderExpeditions,
   professions,
   refreshDailyProfile,
   resourceLabels,
@@ -341,6 +350,25 @@ export default function HomePage() {
       nextProfile.completedDungeons.length > previousRuns
         ? `Подземелье пройдено: ${dungeon.name}.`
         : "Нужны усиления или больше силы.",
+    );
+  }
+
+  function runPathfinderExpedition(expedition: PathfinderExpedition) {
+    if (!profile) {
+      return;
+    }
+
+    const previousRuns = profile.completedPathfinderExpeditions.length;
+    const previousBlueprints = profile.discoveredBlueprints.length;
+    const nextProfile = completePathfinderExpedition(profile, expedition);
+    const discoveredBlueprints = nextProfile.discoveredBlueprints.length - previousBlueprints;
+    updateProfile(
+      nextProfile,
+      nextProfile.completedPathfinderExpeditions.length > previousRuns
+        ? discoveredBlueprints > 0
+          ? `Следопыт нашел чертежи: ${discoveredBlueprints}.`
+          : `Вылазка завершена: ${expedition.name}.`
+        : getPathfinderExpeditionLockHint(profile, expedition),
     );
   }
 
@@ -749,6 +777,27 @@ export default function HomePage() {
                 />
               ))}
             </div>
+            <div className="pathfinder-expedition-panel">
+              <div className="panel-heading compact">
+                <div>
+                  <span className="section-kicker">Следопыт</span>
+                  <h3>Лабиринты и сундуки</h3>
+                </div>
+                <span className="status-pill waiting">
+                  Вылазок: {profile.completedPathfinderExpeditions.length}/{pathfinderExpeditions.length}
+                </span>
+              </div>
+              <div className="pathfinder-expedition-list">
+                {pathfinderExpeditions.map((expedition) => (
+                  <PathfinderExpeditionRow
+                    expedition={expedition}
+                    key={expedition.id}
+                    onRun={() => runPathfinderExpedition(expedition)}
+                    profile={profile}
+                  />
+                ))}
+              </div>
+            </div>
             <div className="dungeon-list">
               {dungeons.map((dungeon) => (
                 <DungeonRow dungeon={dungeon} key={dungeon.id} onEnter={() => runDungeon(dungeon)} profile={profile} />
@@ -1087,6 +1136,62 @@ function EnhancementCard({
         {canForge ? "Усилить" : "Ресурсы"}
       </button>
     </article>
+  );
+}
+
+function PathfinderExpeditionRow({
+  expedition,
+  onRun,
+  profile,
+}: {
+  expedition: PathfinderExpedition;
+  onRun: () => void;
+  profile: GameProfile;
+}) {
+  const completed = profile.completedPathfinderExpeditions.includes(expedition.id);
+  const currentPower = getPathfinderExpeditionPower(profile, expedition);
+  const outcome = getPathfinderExpeditionOutcome(profile, expedition);
+  const powerMet = currentPower >= expedition.requiredPower;
+  const canRun = canRunPathfinderExpedition(profile, expedition);
+  const miniGame = getPathfinderMiniGame(expedition.miniGameId);
+  const lockHint = getPathfinderExpeditionLockHint(profile, expedition);
+  const blueprintNames = expedition.blueprintIds.map((blueprintId) => getEquipment(blueprintId).name);
+  const actionLabel = completed ? "Разведано" : profile.energy <= 0 ? "Нет энергии" : canRun ? miniGame.action : "Закрыто";
+
+  return (
+    <div className={`pathfinder-expedition-row${completed ? " is-cleared" : ""}`}>
+      <span className={`pathfinder-minigame is-${expedition.miniGameId}`}>{miniGame.name}</span>
+      <div className="dungeon-copy">
+        <span className="section-kicker">
+          {expedition.depth} · {getProfession("pathfinder").name}
+        </span>
+        <strong>{expedition.name}</strong>
+        <span>{expedition.description}</span>
+        <RequirementLine profile={profile} requirements={expedition.requiredEnhancements} />
+        <div className="blueprint-line" aria-label="Чертежи тайника">
+          {blueprintNames.map((name) => (
+            <span key={name}>{name}</span>
+          ))}
+        </div>
+        <span className={`dungeon-lock-hint${canRun ? " is-ready" : ""}`}>{lockHint}</span>
+      </div>
+      <div className="dungeon-status">
+        <span className={powerMet ? "is-met" : ""}>
+          {currentPower}/{expedition.requiredPower}
+        </span>
+        <RewardLine
+          extras={[
+            `+${outcome.xp} XP`,
+            `+${outcome.battleContribution} готовность`,
+            ...(outcome.blueprints.length > 0 ? [`+${outcome.blueprints.length} чертеж`] : []),
+          ]}
+          rewards={outcome.resources}
+        />
+      </div>
+      <button className="secondary-button compact" disabled={!canRun} onClick={onRun} type="button">
+        {actionLabel}
+      </button>
+    </div>
   );
 }
 

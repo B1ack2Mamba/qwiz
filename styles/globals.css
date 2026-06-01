@@ -1880,7 +1880,31 @@ button {
   gap: 10px;
 }
 
+.pathfinder-expedition-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.panel-heading.compact {
+  align-items: end;
+  gap: 10px;
+}
+
+.panel-heading.compact h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.pathfinder-expedition-list {
+  display: grid;
+  gap: 10px;
+}
+
 .dungeon-row,
+.pathfinder-expedition-row,
 .team-row {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) minmax(160px, auto) auto;
@@ -1897,6 +1921,15 @@ button {
   background: #f0fbf6;
 }
 
+.pathfinder-expedition-row {
+  grid-template-columns: 118px minmax(0, 1fr) minmax(160px, auto) auto;
+}
+
+.pathfinder-expedition-row.is-cleared {
+  border-color: #9ed8c7;
+  background: #f0fbf6;
+}
+
 .dungeon-depth {
   display: grid;
   width: 48px;
@@ -1906,6 +1939,31 @@ button {
   background: var(--rose);
   color: #ffffff;
   font-weight: 900;
+}
+
+.pathfinder-minigame {
+  display: grid;
+  min-height: 52px;
+  place-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: #243331;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.pathfinder-minigame.is-maze {
+  background: #1e6d65;
+}
+
+.pathfinder-minigame.is-puzzle {
+  background: #2f6f9f;
+}
+
+.pathfinder-minigame.is-lock {
+  background: #6f4d2f;
 }
 
 .dungeon-copy,
@@ -1955,6 +2013,22 @@ button {
   color: var(--teal-dark);
 }
 
+.blueprint-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.blueprint-line span {
+  min-height: 24px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eef7fb;
+  color: #2f6f9f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .dungeon-lock-hint {
   display: block;
   color: var(--muted);
@@ -1968,6 +2042,8 @@ button {
 
 .dungeon-row strong,
 .dungeon-row span,
+.pathfinder-expedition-row strong,
+.pathfinder-expedition-row span,
 .team-row strong,
 .team-row span {
   min-width: 0;
@@ -1975,6 +2051,7 @@ button {
 }
 
 .dungeon-copy > span:not(.section-kicker),
+.pathfinder-expedition-row .dungeon-copy > span:not(.section-kicker),
 .team-row span span,
 .battle-actions span {
   display: block;
@@ -2549,14 +2626,22 @@ button {
   }
 
   .dungeon-row,
+  .pathfinder-expedition-row,
   .team-row {
     grid-template-columns: 42px minmax(0, 1fr);
   }
 
   .dungeon-row .secondary-button,
+  .pathfinder-expedition-row .secondary-button,
   .dungeon-status,
   .team-row .rank-score {
     grid-column: 1 / -1;
+  }
+
+  .pathfinder-minigame {
+    min-height: 42px;
+    padding: 6px;
+    font-size: 11px;
   }
 
   .result-score {

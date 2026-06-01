@@ -7,6 +7,8 @@ export type EquipmentId = "dwarven-pickaxe" | "route-amulet" | "shift-plate" | "
 export type EquipmentSlot = "tool" | "weapon" | "armor" | "relic";
 export type EquipmentStatId = "strength" | "agility" | "intelligence" | "craft" | "economy" | "readiness";
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
+export type PathfinderMiniGameId = "maze" | "puzzle" | "lock";
+export type PathfinderExpeditionId = "archive-maze-cache" | "drone-lock-cache" | "ether-riddle-cache" | "command-vault-cache";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
 export type TeamDirectiveId = "hunt" | "command" | "training" | "craft" | "research" | "alchemy" | "market";
@@ -47,6 +49,10 @@ export type DungeonOutcome = {
   xp: number;
   resources: Partial<ResourceBag>;
   battleContribution: number;
+};
+
+export type PathfinderExpeditionOutcome = DungeonOutcome & {
+  blueprints: EquipmentId[];
 };
 
 export type CompanyObjectiveId = "mission" | "craft" | "dungeon" | "battle" | "rest";
@@ -128,6 +134,28 @@ export type Dungeon = {
   teamContribution: number;
 };
 
+export type PathfinderMiniGame = {
+  id: PathfinderMiniGameId;
+  name: string;
+  action: string;
+  description: string;
+};
+
+export type PathfinderExpedition = {
+  id: PathfinderExpeditionId;
+  dungeonId: DungeonId;
+  name: string;
+  depth: string;
+  miniGameId: PathfinderMiniGameId;
+  description: string;
+  requiredPower: number;
+  requiredEnhancements: Partial<EnhancementBag>;
+  rewards: Partial<ResourceBag>;
+  blueprintIds: EquipmentId[];
+  xp: number;
+  teamContribution: number;
+};
+
 export type TeamDirective = {
   id: TeamDirectiveId;
   name: string;
@@ -157,8 +185,10 @@ export type GameProfile = {
   resources: ResourceBag;
   enhancements: EnhancementBag;
   equipment: EquipmentBag;
+  discoveredBlueprints: EquipmentId[];
   completedMissions: string[];
   completedDungeons: DungeonId[];
+  completedPathfinderExpeditions: PathfinderExpeditionId[];
   battleContribution: number;
   combatTrainingRewardsClaimed: number;
   log: string[];
@@ -172,6 +202,12 @@ type LegacyGameProfile = Partial<GameProfile> & {
 
 const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "workbench", "banner"];
 const equipmentIds: EquipmentId[] = ["dwarven-pickaxe", "route-amulet", "shift-plate", "ether-lens", "command-signet"];
+const pathfinderExpeditionIds: PathfinderExpeditionId[] = [
+  "archive-maze-cache",
+  "drone-lock-cache",
+  "ether-riddle-cache",
+  "command-vault-cache",
+];
 const DEFAULT_TEAM_DIRECTIVE_ID: TeamDirectiveId = "command";
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
 const BATTLE_READINESS_TARGET = 140;
@@ -234,6 +270,27 @@ export const equipmentStatLabels: Record<EquipmentStatId, string> = {
   craft: "Ремесло",
   economy: "Экономика",
   readiness: "Готовность",
+};
+
+export const pathfinderMiniGames: Record<PathfinderMiniGameId, PathfinderMiniGame> = {
+  maze: {
+    id: "maze",
+    name: "Лабиринт маршрута",
+    action: "Проложить путь",
+    description: "Следопыт выбирает короткий маршрут по сетке комнат, избегая ловушек и лишних шагов.",
+  },
+  puzzle: {
+    id: "puzzle",
+    name: "Головоломка печати",
+    action: "Решить печать",
+    description: "Нужно собрать правильную последовательность символов, чтобы открыть скрытый проход или тайник.",
+  },
+  lock: {
+    id: "lock",
+    name: "Замок сундука",
+    action: "Вскрыть сундук",
+    description: "Мини-игра на точность: подобрать механизм замка и забрать монеты, вещи или чертежи.",
+  },
 };
 
 export const teamDirectives: TeamDirective[] = [
@@ -602,6 +659,65 @@ export const dungeons: Dungeon[] = [
   },
 ];
 
+export const pathfinderExpeditions: PathfinderExpedition[] = [
+  {
+    id: "archive-maze-cache",
+    dungeonId: "archive-depths",
+    name: "Тайник нижнего архива",
+    depth: "R1",
+    miniGameId: "maze",
+    description: "Следопыт бежит по короткому лабиринту архива и ищет первые магические чертежи для гнома.",
+    requiredPower: 42,
+    requiredEnhancements: { route: 1 },
+    rewards: { schematics: 1, coins: 3 },
+    blueprintIds: ["dwarven-pickaxe", "route-amulet"],
+    xp: 30,
+    teamContribution: 3,
+  },
+  {
+    id: "drone-lock-cache",
+    dungeonId: "drone-nest",
+    name: "Сундук дронов",
+    depth: "R2",
+    miniGameId: "lock",
+    description: "После боевой комнаты следопыт вскрывает механический сундук и вытаскивает материалы брони.",
+    requiredPower: 68,
+    requiredEnhancements: { route: 1, strike: 1 },
+    rewards: { ore: 1, coins: 4 },
+    blueprintIds: ["shift-plate"],
+    xp: 42,
+    teamContribution: 4,
+  },
+  {
+    id: "ether-riddle-cache",
+    dungeonId: "ether-vault",
+    name: "Печать эфирного хранилища",
+    depth: "R3",
+    miniGameId: "puzzle",
+    description: "Внутри хранилища следопыт собирает символическую головоломку и находит алхимический чертеж.",
+    requiredPower: 94,
+    requiredEnhancements: { route: 2, spark: 1 },
+    rewards: { essence: 2, schematics: 2, coins: 2 },
+    blueprintIds: ["ether-lens"],
+    xp: 54,
+    teamContribution: 5,
+  },
+  {
+    id: "command-vault-cache",
+    dungeonId: "command-core",
+    name: "Сейф командного ядра",
+    depth: "R4",
+    miniGameId: "lock",
+    description: "Финальный замок недели: следопыт открывает сейф с редким снаряжением для командной битвы.",
+    requiredPower: 124,
+    requiredEnhancements: { route: 2, banner: 1 },
+    rewards: { schematics: 2, supplies: 2, coins: 5 },
+    blueprintIds: ["command-signet"],
+    xp: 66,
+    teamContribution: 7,
+  },
+];
+
 export function createGameProfile(employeeId: string, dayKey: string): GameProfile {
   return {
     employeeId,
@@ -621,8 +737,10 @@ export function createGameProfile(employeeId: string, dayKey: string): GameProfi
     },
     enhancements: createEnhancementBag(),
     equipment: createEquipmentBag(),
+    discoveredBlueprints: [],
     completedMissions: [],
     completedDungeons: [],
+    completedPathfinderExpeditions: [],
     battleContribution: 0,
     combatTrainingRewardsClaimed: 0,
     log: ["Герой принят в корпоративную лигу."],
@@ -643,6 +761,7 @@ export function refreshDailyProfile(profile: GameProfile, dayKey: string) {
     energy: 4,
     completedMissions: [],
     completedDungeons: [],
+    completedPathfinderExpeditions: [],
     combatTrainingRewardsClaimed: 0,
     log: [`Новый игровой день открыт: ${dayKey}.`, ...normalized.log].slice(0, 8),
   });
@@ -702,6 +821,14 @@ export function getEquipment(id: EquipmentId) {
   return equipment.find((item) => item.id === id) || equipment[0];
 }
 
+export function getPathfinderMiniGame(id: PathfinderMiniGameId) {
+  return pathfinderMiniGames[id] || pathfinderMiniGames.maze;
+}
+
+export function getPathfinderExpedition(id: PathfinderExpeditionId) {
+  return pathfinderExpeditions.find((expedition) => expedition.id === id) || pathfinderExpeditions[0];
+}
+
 export function getEnhancementPower(profile: GameProfile) {
   const basePower = enhancements.reduce((total, enhancement) => {
     return total + (profile.enhancements[enhancement.id] || 0) * enhancement.power;
@@ -721,6 +848,23 @@ export function getPower(profile: GameProfile) {
 
 export function getDungeonPower(profile: GameProfile, dungeon: Dungeon) {
   return getPower(profile) + (profile.professionId === dungeon.specialist ? 15 : 0);
+}
+
+export function getPathfinderExpeditionPower(profile: GameProfile, expedition: PathfinderExpedition) {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const equipmentStats = getEquipmentStats(profile);
+  const routeMastery = (profile.enhancements.route || 0) * 5;
+  const agilityBonus = (equipmentStats.agility || 0) * 4;
+  const miniGameStatBonus =
+    expedition.miniGameId === "puzzle"
+      ? (equipmentStats.intelligence || 0) * 3
+      : expedition.miniGameId === "lock"
+        ? (equipmentStats.economy || 0) * 3
+        : 0;
+  const specialistPower = profile.professionId === "pathfinder" ? 22 : 0;
+  const directivePower = directiveId === "research" ? 8 : directiveId === "hunt" ? 4 : 0;
+
+  return getPower(profile) + routeMastery + agilityBonus + miniGameStatBonus + specialistPower + directivePower;
 }
 
 export function getMonthlyBattleReadiness(profile: GameProfile, teamSize: number) {
@@ -747,6 +891,19 @@ export function getBattleReadinessPlan(profile: GameProfile, teamSize: number): 
 }
 
 export function getCompanyObjective(profile: GameProfile, teamSize: number): CompanyObjective {
+  const readyExpedition = pathfinderExpeditions.find((expedition) => canRunPathfinderExpedition(profile, expedition));
+  if (readyExpedition) {
+    const outcome = getPathfinderExpeditionOutcome(profile, readyExpedition);
+    const blueprintText =
+      outcome.blueprints.length > 0 ? ` и ${outcome.blueprints.length} чертеж` : "";
+    return {
+      id: "dungeon",
+      title: `Разведать: ${readyExpedition.name}`,
+      detail: `Следопыт готов к мини-игре: +${outcome.xp} XP, монеты/ресурсы${blueprintText}.`,
+      action: "Подземелья",
+    };
+  }
+
   const readyDungeon = dungeons.find((dungeon) => canEnterDungeon(profile, dungeon));
   if (readyDungeon) {
     const outcome = getDungeonOutcome(readyDungeon);
@@ -900,7 +1057,7 @@ export function getEquipmentPower(profile: GameProfile) {
 }
 
 export function hasEquipmentBlueprint(profile: GameProfile, item: Equipment) {
-  return profile.completedDungeons.includes(item.blueprintDungeonId);
+  return profile.completedDungeons.includes(item.blueprintDungeonId) || profile.discoveredBlueprints.includes(item.id);
 }
 
 export function getEquipmentCost(profile: GameProfile, item: Equipment) {
@@ -980,6 +1137,101 @@ export function craftEquipment(profile: GameProfile, item: Equipment) {
 
   applyLevelUps(next);
   next.log.unshift(`Гном собрал снаряжение: ${item.name}.`);
+  return touch(next);
+}
+
+export function hasPathfinderExpeditionRequirements(profile: GameProfile, expedition: PathfinderExpedition) {
+  return (Object.entries(expedition.requiredEnhancements) as Array<[EnhancementId, number]>).every(([id, amount]) => {
+    return (profile.enhancements[id] || 0) >= amount;
+  });
+}
+
+export function canRunPathfinderExpedition(profile: GameProfile, expedition: PathfinderExpedition) {
+  return (
+    profile.professionId === "pathfinder" &&
+    profile.energy > 0 &&
+    !profile.completedPathfinderExpeditions.includes(expedition.id) &&
+    hasPathfinderExpeditionRequirements(profile, expedition) &&
+    getPathfinderExpeditionPower(profile, expedition) >= expedition.requiredPower
+  );
+}
+
+export function getPathfinderExpeditionLockHint(profile: GameProfile, expedition: PathfinderExpedition) {
+  if (profile.completedPathfinderExpeditions.includes(expedition.id)) {
+    return "Сегодня уже разведано";
+  }
+
+  if (profile.professionId !== "pathfinder") {
+    return "Нужен Следопыт";
+  }
+
+  if (profile.energy <= 0) {
+    return "Нужна энергия для вылазки";
+  }
+
+  const missingRequirements = (Object.entries(expedition.requiredEnhancements) as Array<[EnhancementId, number]>).filter(
+    ([id, amount]) => (profile.enhancements[id] || 0) < amount,
+  );
+  if (missingRequirements.length > 0) {
+    const [id, amount] = missingRequirements[0];
+    return `Нужно усиление: ${getEnhancement(id).name} ${profile.enhancements[id] || 0}/${amount}`;
+  }
+
+  const missingPower = expedition.requiredPower - getPathfinderExpeditionPower(profile, expedition);
+  if (missingPower > 0) {
+    return `Нужно еще +${missingPower} разведки`;
+  }
+
+  return `Готово: ${getPathfinderMiniGame(expedition.miniGameId).action}`;
+}
+
+export function getPathfinderExpeditionOutcome(
+  profile: GameProfile,
+  expedition: PathfinderExpedition,
+): PathfinderExpeditionOutcome {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const newBlueprints = expedition.blueprintIds.filter((blueprintId) => !profile.discoveredBlueprints.includes(blueprintId));
+  const baseRewards = expedition.rewards;
+  const pathfinderBonus = profile.professionId === "pathfinder" ? 1 : 0;
+
+  return {
+    xp: expedition.xp + (profile.professionId === "pathfinder" ? 8 : 0) + (directiveId === "research" ? 6 : 0),
+    resources: compactResources({
+      ore: (baseRewards.ore || 0) + (directiveId === "craft" ? 1 : 0),
+      essence: baseRewards.essence || 0,
+      schematics: (baseRewards.schematics || 0) + (directiveId === "research" ? 1 : 0),
+      supplies: baseRewards.supplies || 0,
+      coins: (baseRewards.coins || 0) + pathfinderBonus + (directiveId === "market" ? 2 : 0),
+    }),
+    battleContribution: expedition.teamContribution + pathfinderBonus + (directiveId === "hunt" ? 1 : 0),
+    blueprints: newBlueprints,
+  };
+}
+
+export function completePathfinderExpedition(profile: GameProfile, expedition: PathfinderExpedition) {
+  if (!canRunPathfinderExpedition(profile, expedition)) {
+    return profile;
+  }
+
+  const outcome = getPathfinderExpeditionOutcome(profile, expedition);
+  const next = cloneProfile(profile);
+  next.energy -= 1;
+  next.completedPathfinderExpeditions.push(expedition.id);
+  next.xp += outcome.xp;
+  next.battleContribution += outcome.battleContribution;
+  addRewards(next.resources, outcome.resources);
+
+  for (const blueprintId of outcome.blueprints) {
+    next.discoveredBlueprints.push(blueprintId);
+  }
+
+  applyLevelUps(next);
+  const blueprintNames = outcome.blueprints.map((blueprintId) => getEquipment(blueprintId).name).join(", ");
+  next.log.unshift(
+    blueprintNames
+      ? `Следопыт открыл тайник: ${expedition.name}. Чертежи: ${blueprintNames}.`
+      : `Следопыт закрыл вылазку: ${expedition.name}.`,
+  );
   return touch(next);
 }
 
@@ -1267,8 +1519,10 @@ function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile
     resources: normalizeResources(legacy.resources),
     enhancements: migratedEnhancements,
     equipment: createEquipmentBag(legacy.equipment),
+    discoveredBlueprints: normalizeEquipmentIds(legacy.discoveredBlueprints),
     completedMissions: Array.isArray(legacy.completedMissions) ? legacy.completedMissions.slice() : [],
     completedDungeons: normalizeDungeonIds(legacy.completedDungeons || legacy.defeatedMobs),
+    completedPathfinderExpeditions: normalizePathfinderExpeditionIds(legacy.completedPathfinderExpeditions),
     battleContribution: Math.max(0, Math.floor(Number(legacy.battleContribution || 0))),
     combatTrainingRewardsClaimed: Math.max(0, Math.floor(Number(legacy.combatTrainingRewardsClaimed || 0))),
     log: Array.isArray(legacy.log) && legacy.log.length > 0 ? legacy.log.slice(0, 8) : ["Герой принят в корпоративную лигу."],
@@ -1293,6 +1547,24 @@ function normalizeDungeonIds(ids: string[] | undefined): DungeonId[] {
 
   const validIds = new Set(dungeons.map((dungeon) => dungeon.id));
   return ids.filter((id): id is DungeonId => validIds.has(id as DungeonId));
+}
+
+function normalizeEquipmentIds(ids: string[] | undefined): EquipmentId[] {
+  if (!Array.isArray(ids)) {
+    return [];
+  }
+
+  const validIds = new Set(equipmentIds);
+  return ids.filter((id): id is EquipmentId => validIds.has(id as EquipmentId));
+}
+
+function normalizePathfinderExpeditionIds(ids: string[] | undefined): PathfinderExpeditionId[] {
+  if (!Array.isArray(ids)) {
+    return [];
+  }
+
+  const validIds = new Set(pathfinderExpeditionIds);
+  return ids.filter((id): id is PathfinderExpeditionId => validIds.has(id as PathfinderExpeditionId));
 }
 
 function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission): Partial<ResourceBag> {
@@ -1428,8 +1700,10 @@ function cloneProfile(profile: GameProfile): GameProfile {
     resources: { ...profile.resources },
     enhancements: { ...profile.enhancements },
     equipment: { ...profile.equipment },
+    discoveredBlueprints: profile.discoveredBlueprints.slice(),
     completedMissions: profile.completedMissions.slice(),
     completedDungeons: profile.completedDungeons.slice(),
+    completedPathfinderExpeditions: profile.completedPathfinderExpeditions.slice(),
     log: profile.log.slice(0, 8),
   };
 }
