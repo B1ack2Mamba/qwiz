@@ -41,6 +41,7 @@ import {
   getBattleContributionCost,
   getBattleContributionGain,
   getBattleReadinessPlan,
+  getCompanyObjective,
   getDungeonOutcome,
   getDungeonPower,
   getEnhancement,
@@ -125,6 +126,7 @@ export default function HomePage() {
     profile && professionSeason ? profile.professionChangeSeasonKey !== professionSeason.key : false;
   const heroPower = profile ? getPower(profile) : 0;
   const battlePlan = profile ? getBattleReadinessPlan(profile, rankedEmployees.length) : null;
+  const companyObjective = profile ? getCompanyObjective(profile, rankedEmployees.length) : null;
   const monthlyReadiness = battlePlan?.readiness || 0;
   const battleContributionCost = profile ? getBattleContributionCost(profile) : {};
   const battleContributionGain = profile ? getBattleContributionGain(profile) : 0;
@@ -523,6 +525,17 @@ export default function HomePage() {
           <Metric label="Энергия" value={`${profile.energy}/4`} />
           <Metric label="Готовность" value={`${monthlyReadiness}%`} />
         </section>
+
+        {companyObjective && (
+          <section className={`squad-objective is-${companyObjective.id}`} aria-label="Следующая цель отряда">
+            <div>
+              <span className="section-kicker">Следующая цель отряда</span>
+              <strong>{companyObjective.title}</strong>
+              <span>{companyObjective.detail}</span>
+            </div>
+            <span className="squad-objective-action">{companyObjective.action}</span>
+          </section>
+        )}
 
         <div className="game-layout">
           <section className={`panel game-panel mobile-section${activeSection === "hero" ? " is-active" : ""}`}>

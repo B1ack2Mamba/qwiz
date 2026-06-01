@@ -36,6 +36,15 @@ export type DungeonOutcome = {
   battleContribution: number;
 };
 
+export type CompanyObjectiveId = "mission" | "craft" | "dungeon" | "battle" | "rest";
+
+export type CompanyObjective = {
+  id: CompanyObjectiveId;
+  title: string;
+  detail: string;
+  action: string;
+};
+
 export type BattleReadinessTierId = "patrol" | "hold" | "counter" | "breakthrough";
 
 export type BattleReadinessTier = {
@@ -531,6 +540,58 @@ export function getBattleReadinessPlan(profile: GameProfile, teamSize: number): 
     tier,
     nextTier,
     pointsToNext: nextTier ? nextTier.threshold - readiness : 0,
+  };
+}
+
+export function getCompanyObjective(profile: GameProfile, teamSize: number): CompanyObjective {
+  const readyDungeon = dungeons.find((dungeon) => canEnterDungeon(profile, dungeon));
+  if (readyDungeon) {
+    const outcome = getDungeonOutcome(readyDungeon);
+    return {
+      id: "dungeon",
+      title: `Пройти: ${readyDungeon.name}`,
+      detail: `Доступен спуск ${readyDungeon.depth}: +${outcome.xp} XP и +${outcome.battleContribution} готовность.`,
+      action: "Подземелья",
+    };
+  }
+
+  const openMission = dailyMissions.find((mission) => !profile.completedMissions.includes(mission.id));
+  if (profile.energy > 0 && openMission) {
+    const outcome = getMissionOutcome(profile, openMission);
+    return {
+      id: "mission",
+      title: `Закрыть: ${openMission.title}`,
+      detail: `Есть энергия для активности: +${outcome.xp} XP и ресурсы для следующего шага.`,
+      action: "Задания",
+    };
+  }
+
+  const forgeTarget = enhancements.find((enhancement) => canForgeEnhancement(profile, enhancement));
+  if (forgeTarget) {
+    const outcome = getEnhancementOutcome(profile, forgeTarget);
+    return {
+      id: "craft",
+      title: `Сковать: ${forgeTarget.name}`,
+      detail: `Доступно усиление: +${outcome.powerGain} сила и +${outcome.battleContribution} готовность.`,
+      action: "Крафт",
+    };
+  }
+
+  const battlePlan = getBattleReadinessPlan(profile, teamSize);
+  if (battlePlan.nextTier && canContributeToBattle(profile)) {
+    return {
+      id: "battle",
+      title: `Поднять план: ${battlePlan.nextTier.name}`,
+      detail: `До следующего плана ${battlePlan.pointsToNext}%. Вклад ускорит месячную оборону.`,
+      action: "Битва",
+    };
+  }
+
+  return {
+    id: "rest",
+    title: "Смена закреплена",
+    detail: "Основные быстрые действия закрыты. Копите ресурсы или дождитесь новой энергии.",
+    action: "Планирование",
   };
 }
 

@@ -986,6 +986,48 @@ button {
   margin-bottom: 0;
 }
 
+.squad-objective {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.squad-objective strong,
+.squad-objective span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.squad-objective strong {
+  margin: 3px 0 4px;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.squad-objective span:not(.section-kicker) {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.36;
+}
+
+.squad-objective-action {
+  min-height: 30px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--teal-dark) !important;
+  font-size: 12px !important;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .game-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 0.78fr);
@@ -2248,6 +2290,14 @@ button {
 
   .metric-card strong {
     font-size: 22px;
+  }
+
+  .squad-objective {
+    grid-template-columns: 1fr;
+  }
+
+  .squad-objective-action {
+    justify-self: start;
   }
 
   .result-stats {
