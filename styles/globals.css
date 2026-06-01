@@ -2075,6 +2075,20 @@ button {
   align-items: center;
 }
 
+.battle-action-hint {
+  min-height: 30px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #f2f5ef;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.battle-action-hint.is-ready {
+  background: var(--mint);
+  color: var(--teal-dark);
+}
+
 @media (max-width: 680px) {
   .battle-plan {
     grid-template-columns: 1fr;

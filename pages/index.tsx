@@ -136,6 +136,7 @@ export default function HomePage() {
   const battleContributionCost = profile ? getBattleContributionCost(profile) : {};
   const battleContributionGain = profile ? getBattleContributionGain(profile) : 0;
   const battleContributionReady = profile ? canContributeToBattle(profile) : false;
+  const battleContributionShortfall = profile ? getResourceShortfall(profile, battleContributionCost) : {};
   useEffect(() => {
     const selectedEmployeeId = window.localStorage.getItem(SELECTED_EMPLOYEE_KEY) || undefined;
     const token = window.localStorage.getItem(SESSION_TOKEN_KEY) || "";
@@ -791,8 +792,11 @@ export default function HomePage() {
               <button className="primary-button" disabled={!battleContributionReady} onClick={runBattleContribution} type="button">
                 Внести вклад
               </button>
-              <span>
-                +{battleContributionGain} готовности · Требуется: {formatResourceList(battleContributionCost)}
+              <span className={`battle-action-hint${battleContributionReady ? " is-ready" : ""}`}>
+                {battleContributionReady
+                  ? `Готово: +${battleContributionGain} готовности`
+                  : `Не хватает: ${formatResourceList(battleContributionShortfall) || formatResourceList(battleContributionCost)}`}{" "}
+                · Требуется: {formatResourceList(battleContributionCost)}
               </span>
             </div>
             <CombatTrainingArena
@@ -943,6 +947,20 @@ function formatResourceList(resources: Partial<Record<keyof typeof resourceLabel
     .filter(([, amount]) => amount > 0)
     .map(([resource, amount]) => `${amount} ${resourceLabels[resource]}`)
     .join(", ");
+}
+
+function getResourceShortfall(profile: GameProfile, cost: Partial<Record<keyof typeof resourceLabels, number>>) {
+  return (Object.entries(cost) as Array<[keyof typeof resourceLabels, number]>).reduce(
+    (shortfall, [resource, amount]) => {
+      const missing = Math.max(0, amount - profile.resources[resource]);
+      if (missing > 0) {
+        shortfall[resource] = missing;
+      }
+
+      return shortfall;
+    },
+    {} as Partial<Record<keyof typeof resourceLabels, number>>,
+  );
 }
 
 function getMissionBonusNotes(profile: GameProfile, mission: DailyMission) {
