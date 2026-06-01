@@ -235,6 +235,8 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const rewardClaimed = claimedWaves.has(combatState.wave);
   const rewardsLeft = Math.max(0, DAILY_COMBAT_TRAINING_REWARD_LIMIT - profile.combatTrainingRewardsClaimed);
   const canClaimReward = combatState.status === "victory" && !rewardClaimed && canClaimCombatTrainingReward(profile);
+  const nextWavePreview =
+    combatState.status === "victory" ? getNextWavePreview(combatState, profile, heroPower) : null;
   const rewardLimitLabel = rewardClaimed
     ? "Награда этой волны уже получена."
     : rewardsLeft > 0
@@ -460,6 +462,14 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                   ))}
                 </div>
                 <span className={styles.rewardLimitHint}>{rewardLimitLabel}</span>
+                {nextWavePreview && (
+                  <div className={styles.nextWavePreview} aria-label="Следующая волна">
+                    <span>Волна {nextWavePreview.wave}</span>
+                    <span>{nextWavePreview.enemyCount} целей</span>
+                    <span>{nextWavePreview.totalHp} HP врагов</span>
+                    <span>Угроза {nextWavePreview.maxThreat}</span>
+                  </div>
+                )}
               </div>
               <div className={styles.resultActions}>
                 <button className={styles.rewardButton} disabled={!canClaimReward} onClick={claimReward} type="button">
@@ -531,6 +541,22 @@ function RankBreakdown({ breakdown }: { breakdown: ReturnType<typeof getCombatTr
       {breakdown.damagePenalty > 0 && <span className={styles.rankPenalty}>Урон -{breakdown.damagePenalty}</span>}
     </div>
   );
+}
+
+function getNextWavePreview(state: CombatState, profile: GameProfile, heroPower: number) {
+  const next = createCombatTrainingState(profile, heroPower, state.wave + 1);
+  const totalHp = next.enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
+  const maxThreat = next.enemies.reduce(
+    (highest, enemy) => Math.max(highest, enemy.attackDamage + enemy.contactDamage),
+    0,
+  );
+
+  return {
+    enemyCount: next.enemies.length,
+    maxThreat,
+    totalHp,
+    wave: next.wave,
+  };
 }
 
 function getNextRankGoal(score: number) {

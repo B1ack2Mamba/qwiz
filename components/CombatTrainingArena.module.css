@@ -2425,6 +2425,23 @@
   font-weight: 800;
 }
 
+.nextWavePreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.nextWavePreview span {
+  min-height: 24px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eef7fb;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .resultActions {
   display: flex;
   flex-wrap: wrap;
