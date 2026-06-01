@@ -9,7 +9,7 @@ export type EquipmentStatId = "strength" | "agility" | "intelligence" | "craft" 
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
-export type TeamDirectiveId = "hunt" | "command" | "research" | "alchemy" | "market";
+export type TeamDirectiveId = "hunt" | "command" | "training" | "craft" | "research" | "alchemy" | "market";
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
@@ -136,6 +136,15 @@ export type TeamDirective = {
   bonus: string;
 };
 
+export type TeamStrategyTrack = {
+  id: TeamDirectiveId;
+  name: string;
+  dailyFarm: string;
+  increases: string[];
+  decreases: string[];
+  tacticianBonus: string;
+};
+
 export type GameProfile = {
   employeeId: string;
   dayKey: string;
@@ -243,6 +252,20 @@ export const teamDirectives: TeamDirective[] = [
     bonus: "+12 сила героя, +3 к вкладу в битву",
   },
   {
+    id: "training",
+    name: "Уровни",
+    focus: "Прокачка базы",
+    description: "Группа вкладывает день в опыт: быстрее растет уровень, но меньше ускоряется экономика.",
+    bonus: "+XP за задания и тренировки, меньше прямой вклад в битву",
+  },
+  {
+    id: "craft",
+    name: "Крафт",
+    focus: "Ресурсы и снаряжение",
+    description: "Силы уходят на добычу, чертежи и работу гнома, открывая больше возможностей для сборки снаряжения.",
+    bonus: "+металл и дешевле часть ковки, меньше боевой темп",
+  },
+  {
     id: "research",
     name: "Исследование",
     focus: "Головоломки и квизы",
@@ -264,6 +287,65 @@ export const teamDirectives: TeamDirective[] = [
     bonus: "+монеты и провиант за задания, -1 провиант в цене усилений и вклада",
   },
 ];
+
+export const teamStrategyTracks: Record<TeamDirectiveId, TeamStrategyTrack> = {
+  hunt: {
+    id: "hunt",
+    name: "Охотничий натиск",
+    dailyFarm: "боевые тренировки, зачистки, вклад в месячную битву",
+    increases: ["вклад за бой", "провиант и эфир с волн", "темп боевой готовности"],
+    decreases: ["экономику монет", "дешевизну крафта"],
+    tacticianBonus: "Тактик точнее распределяет цели и дает еще +1 к боевому вкладу.",
+  },
+  command: {
+    id: "command",
+    name: "Командный баланс",
+    dailyFarm: "готовность, безопасное распределение сил, общий темп",
+    increases: ["силу героя", "вклад в битву", "стабильность команды"],
+    decreases: ["узкую специализацию", "взрывной рост ресурсов"],
+    tacticianBonus: "Тактик получает максимальную отдачу от командной готовности.",
+  },
+  training: {
+    id: "training",
+    name: "Школа уровней",
+    dailyFarm: "квизы, тренировки, базовый опыт и энергия",
+    increases: ["XP", "скорость получения уровней", "базовую силу"],
+    decreases: ["ресурсный фарм", "прямой боевой вклад"],
+    tacticianBonus: "Тактик превращает план обучения в дополнительный XP для группы.",
+  },
+  craft: {
+    id: "craft",
+    name: "Гномья мастерская",
+    dailyFarm: "металл, схемы, монеты и сборка снаряжения",
+    increases: ["добычу", "дешевизну ковки", "снаряжение команды"],
+    decreases: ["быстрый вклад в битву", "чистую прокачку уровней"],
+    tacticianBonus: "Тактик заранее распределяет заказы и снижает потери материалов.",
+  },
+  research: {
+    id: "research",
+    name: "Чертежная разведка",
+    dailyFarm: "головоломки, маршруты, схемы и подготовка подземелий",
+    increases: ["схемы", "доступ к чертежам", "интеллектуальные задания"],
+    decreases: ["монеты", "боевой темп"],
+    tacticianBonus: "Тактик выбирает, какие задачи дадут больше схем для следующего шага.",
+  },
+  alchemy: {
+    id: "alchemy",
+    name: "Алхимическая школа",
+    dailyFarm: "психика, герметизм, сканворды, квизы и развитие навыков",
+    increases: ["эфир", "XP за учебу", "силу магических навыков"],
+    decreases: ["дешевый вклад в битву", "быстрый рынок"],
+    tacticianBonus: "Тактик связывает знания с ролями команды и ускоряет рост навыков.",
+  },
+  market: {
+    id: "market",
+    name: "Рыночный запас",
+    dailyFarm: "монеты, провиант, сделки и накопление",
+    increases: ["монеты", "провиант", "скидки на снаряжение"],
+    decreases: ["боевой вклад", "скорость прокачки навыков"],
+    tacticianBonus: "Тактик лучше распределяет бюджет и уменьшает лишние расходы.",
+  },
+};
 
 export const professions: Profession[] = [
   {
@@ -574,6 +656,10 @@ export function getTeamDirective(id: TeamDirectiveId | undefined) {
   return teamDirectives.find((directive) => directive.id === id) || teamDirectives.find((directive) => directive.id === DEFAULT_TEAM_DIRECTIVE_ID)!;
 }
 
+export function getTeamStrategyTrack(profile: GameProfile) {
+  return teamStrategyTracks[getTeamDirective(profile.teamDirectiveId).id];
+}
+
 export function getProfessionSeason(dayKey: string) {
   const seasonIndex = getProfessionSeasonIndex(dayKey);
   const startDate = parseDateKey(PROFESSION_SEASON_EPOCH_KEY);
@@ -683,6 +769,17 @@ export function getCompanyObjective(profile: GameProfile, teamSize: number): Com
     };
   }
 
+  const equipmentTarget = equipment.find((item) => canCraftEquipment(profile, item));
+  if (equipmentTarget) {
+    const outcome = getEquipmentOutcome(equipmentTarget);
+    return {
+      id: "craft",
+      title: `Собрать: ${equipmentTarget.name}`,
+      detail: `Гном может открыть снаряжение: +${outcome.powerGain} силы и новые характеристики отряда.`,
+      action: "Крафт",
+    };
+  }
+
   const forgeTarget = enhancements.find((enhancement) => canForgeEnhancement(profile, enhancement));
   if (forgeTarget) {
     const outcome = getEnhancementOutcome(profile, forgeTarget);
@@ -735,6 +832,16 @@ export function getEnhancementCost(profile: GameProfile, enhancement: Enhancemen
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
   if (directiveId === "market" && (cost.supplies || 0) > 0) {
     cost.supplies = Math.max(0, (cost.supplies || 0) - 1);
+  }
+
+  if (directiveId === "craft") {
+    if ((cost.ore || 0) > 0) {
+      cost.ore = Math.max(0, (cost.ore || 0) - 1);
+    }
+
+    if (profile.professionId === "miner" && (cost.schematics || 0) > 0) {
+      cost.schematics = Math.max(0, (cost.schematics || 0) - 1);
+    }
   }
 
   if (directiveId === "alchemy" && enhancement.id === "spark" && (cost.essence || 0) > 0) {
@@ -799,6 +906,7 @@ export function hasEquipmentBlueprint(profile: GameProfile, item: Equipment) {
 export function getEquipmentCost(profile: GameProfile, item: Equipment) {
   const cost: Partial<ResourceBag> = { ...item.cost };
   const workbenchLevel = profile.enhancements.workbench || 0;
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
 
   if (profile.professionId === "miner") {
     cost.coins = Math.max(0, (cost.coins || 0) - 1 - Math.floor(workbenchLevel / 2));
@@ -807,7 +915,17 @@ export function getEquipmentCost(profile: GameProfile, item: Equipment) {
     }
   }
 
-  if (getTeamDirective(profile.teamDirectiveId).id === "market" && (cost.coins || 0) > 0) {
+  if (directiveId === "craft" && profile.professionId === "miner") {
+    if ((cost.ore || 0) > 0) {
+      cost.ore = Math.max(0, (cost.ore || 0) - 1);
+    }
+
+    if ((cost.coins || 0) > 0) {
+      cost.coins = Math.max(0, (cost.coins || 0) - 1);
+    }
+  }
+
+  if (directiveId === "market" && (cost.coins || 0) > 0) {
     cost.coins = Math.max(0, (cost.coins || 0) - 1);
   }
 
@@ -989,13 +1107,24 @@ export function getBattleContributionCost(profile: GameProfile): Partial<Resourc
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
 
   return compactResources({
-    supplies: directiveId === "market" ? 0 : 1,
+    supplies: directiveId === "market" ? 0 : directiveId === "training" ? 2 : 1,
     essence: directiveId === "alchemy" ? 2 : 1,
   });
 }
 
 export function getBattleContributionGain(profile: GameProfile) {
-  return (profile.professionId === "tactician" ? 14 : 9) + (getTeamDirective(profile.teamDirectiveId).id === "command" ? 3 : 0);
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const directiveGain: Record<TeamDirectiveId, number> = {
+    alchemy: -1,
+    command: 3,
+    craft: -1,
+    hunt: 1,
+    market: -2,
+    research: 0,
+    training: -2,
+  };
+
+  return Math.max(4, (profile.professionId === "tactician" ? 14 : 9) + directiveGain[directiveId]);
 }
 
 export function canContributeToBattle(profile: GameProfile) {
@@ -1021,18 +1150,23 @@ export function getCombatTrainingReward(profile: GameProfile, wave: number, defe
   const safeDefeatedCount = Math.max(1, Math.floor(defeatedCount));
   const rankBonusPercent = getCombatTrainingRankBonus(rank);
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const tacticianPush = profile.professionId === "tactician" ? 1 : 0;
   const battleContribution = scaleRankReward(
-    (profile.professionId === "tactician" ? 5 : 3) + safeWave + (directiveId === "hunt" ? 2 : directiveId === "command" ? 1 : 0),
+    (profile.professionId === "tactician" ? 5 : 3) +
+      safeWave +
+      (directiveId === "hunt" ? 2 + tacticianPush : directiveId === "command" ? 1 + tacticianPush : 0),
     rankBonusPercent,
   );
+  const trainingXp = directiveId === "training" ? 10 + (profile.professionId === "tactician" ? 4 : 0) : 0;
   const resources = compactResources({
     supplies: 1 + (rank === "S" || rank === "A" ? 1 : 0) + (directiveId === "hunt" && safeDefeatedCount >= 3 ? 1 : 0),
     essence: (safeWave >= 2 ? 1 : 0) + (rank === "S" ? 1 : 0),
-    ore: (safeDefeatedCount >= 4 ? 1 : 0) + (rank === "S" && safeWave >= 3 ? 1 : 0),
+    ore: (safeDefeatedCount >= 4 ? 1 : 0) + (rank === "S" && safeWave >= 3 ? 1 : 0) + (directiveId === "craft" ? 1 : 0),
+    coins: directiveId === "market" ? 2 + (rank === "S" || rank === "A" ? 1 : 0) : 0,
   });
 
   return {
-    xp: scaleRankReward(18 + safeWave * 8 + safeDefeatedCount * 4, rankBonusPercent),
+    xp: scaleRankReward(18 + safeWave * 8 + safeDefeatedCount * 4 + trainingXp, rankBonusPercent),
     resources,
     battleContribution,
     rankBonusPercent,
@@ -1164,6 +1298,13 @@ function normalizeDungeonIds(ids: string[] | undefined): DungeonId[] {
 function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission): Partial<ResourceBag> {
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
 
+  if (directiveId === "craft") {
+    return compactResources({
+      ore: 1,
+      coins: profile.professionId === "miner" ? 1 : 0,
+    });
+  }
+
   if (directiveId === "research" && studyMissionIds.has(mission.id)) {
     return { schematics: 1 };
   }
@@ -1184,6 +1325,10 @@ function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission)
 
 function getDirectiveMissionXp(profile: GameProfile, mission: DailyMission) {
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  if (directiveId === "training") {
+    return profile.professionId === "tactician" ? 14 : 10;
+  }
+
   if (directiveId === "research" && studyMissionIds.has(mission.id)) {
     return 6;
   }
@@ -1197,7 +1342,8 @@ function getDirectiveMissionXp(profile: GameProfile, mission: DailyMission) {
 
 function getDirectiveMissionContribution(profile: GameProfile) {
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
-  return directiveId === "hunt" ? 2 : directiveId === "command" ? 1 : 0;
+  const tacticianPush = profile.professionId === "tactician" ? 1 : 0;
+  return directiveId === "hunt" ? 2 + tacticianPush : directiveId === "command" ? 1 + tacticianPush : 0;
 }
 
 function isProfessionId(id: unknown): id is ProfessionId {
