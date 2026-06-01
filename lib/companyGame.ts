@@ -6,7 +6,7 @@ export type EnhancementId = "strike" | "guard" | "route" | "spark" | "workbench"
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
-export type TeamDirectiveId = "hunt" | "command" | "research" | "market";
+export type TeamDirectiveId = "hunt" | "command" | "research" | "alchemy" | "market";
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
@@ -140,6 +140,7 @@ const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "w
 const DEFAULT_TEAM_DIRECTIVE_ID: TeamDirectiveId = "command";
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
 const BATTLE_READINESS_TARGET = 140;
+const studyMissionIds = new Set(["knowledge", "maze", "merge", "cipher", "crossword"]);
 
 export const PROFESSION_SEASON_LENGTH_DAYS = 14;
 export const DAILY_COMBAT_TRAINING_REWARD_LIMIT = 3;
@@ -213,6 +214,13 @@ export const teamDirectives: TeamDirective[] = [
     bonus: "+схемы и XP за ежедневные активности",
   },
   {
+    id: "alchemy",
+    name: "Алхимия",
+    focus: "Психика, знания, навыки",
+    description: "Маг изучает материалы, герметизм и поведение людей, превращая квизы, сканворды и головоломки в рост умений.",
+    bonus: "+эфир и XP за учебные задания, дешевле магический навык, меньше прямой вклад в битву",
+  },
+  {
     id: "market",
     name: "Рынок",
     focus: "Деньги, ресурсы, крафт",
@@ -256,10 +264,10 @@ export const professions: Profession[] = [
   },
   {
     id: "enchanter",
-    name: "Усилитель",
-    role: "Эфир",
-    function: "Заряжает усиления эфиром и повышает силу героя.",
-    bonus: "+1 эфир при ковке усиления",
+    name: "Маг-алхимик",
+    role: "Алхимия",
+    function: "Изучает материалы, психику людей и символические системы, усиливая навыки через квизы и головоломки.",
+    bonus: "+1 эфир при ковке усиления, сильнее при стратегии Алхимия",
     crest: "US",
   },
   {
@@ -304,6 +312,14 @@ export const dailyMissions: DailyMission[] = [
     description: "Решить мини-задачу и открыть чертеж усиления.",
     power: 26,
     rewards: { schematics: 1, ore: 1 },
+  },
+  {
+    id: "crossword",
+    title: "Сканворд архетипов",
+    type: "Сканворд",
+    description: "Разобрать понятия о мотивации, привычках и психике людей, чтобы открыть алхимический паттерн навыка.",
+    power: 32,
+    rewards: { schematics: 2, essence: 1 },
   },
 ];
 
@@ -506,14 +522,19 @@ export function getEnhancement(id: EnhancementId) {
 }
 
 export function getEnhancementPower(profile: GameProfile) {
-  return enhancements.reduce((total, enhancement) => {
+  const basePower = enhancements.reduce((total, enhancement) => {
     return total + (profile.enhancements[enhancement.id] || 0) * enhancement.power;
   }, 0);
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const alchemySkillPower = directiveId === "alchemy" ? (profile.enhancements.spark || 0) * 4 : 0;
+
+  return basePower + alchemySkillPower;
 }
 
 export function getPower(profile: GameProfile) {
-  const professionPower = profile.professionId === "tactician" ? 20 : 0;
-  const directivePower = getTeamDirective(profile.teamDirectiveId).id === "command" ? 12 : 0;
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const professionPower = profile.professionId === "tactician" ? 20 : profile.professionId === "enchanter" && directiveId === "alchemy" ? 10 : 0;
+  const directivePower = directiveId === "command" ? 12 : 0;
   return profile.level * 25 + getEnhancementPower(profile) + profile.battleContribution + professionPower + directivePower;
 }
 
@@ -615,8 +636,13 @@ export function getEnhancementCost(profile: GameProfile, enhancement: Enhancemen
     cost.ore = Math.max(0, (cost.ore || 0) - 1);
   }
 
-  if (getTeamDirective(profile.teamDirectiveId).id === "market" && (cost.supplies || 0) > 0) {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  if (directiveId === "market" && (cost.supplies || 0) > 0) {
     cost.supplies = Math.max(0, (cost.supplies || 0) - 1);
+  }
+
+  if (directiveId === "alchemy" && enhancement.id === "spark" && (cost.essence || 0) > 0) {
+    cost.essence = Math.max(0, (cost.essence || 0) - 1);
   }
 
   return compactResources(cost);
@@ -638,13 +664,17 @@ export function getEnhancementShortfall(profile: GameProfile, enhancement: Enhan
 }
 
 export function getEnhancementOutcome(profile: GameProfile, enhancement: Enhancement): EnhancementOutcome {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const alchemySkill = directiveId === "alchemy" && enhancement.id === "spark";
+
   return {
-    xp: 12 + enhancement.power,
+    xp: 12 + enhancement.power + (alchemySkill ? 8 : 0),
     resources: compactResources({
       essence: profile.professionId === "enchanter" ? 1 : 0,
+      schematics: alchemySkill ? 1 : 0,
     }),
-    battleContribution: enhancement.id === "banner" ? 4 : 2,
-    powerGain: enhancement.power,
+    battleContribution: enhancement.id === "banner" ? 4 : alchemySkill ? 1 : 2,
+    powerGain: enhancement.power + (alchemySkill ? 4 : 0),
   };
 }
 
@@ -772,7 +802,7 @@ export function getBattleContributionCost(profile: GameProfile): Partial<Resourc
 
   return compactResources({
     supplies: directiveId === "market" ? 0 : 1,
-    essence: 1,
+    essence: directiveId === "alchemy" ? 2 : 1,
   });
 }
 
@@ -937,8 +967,15 @@ function normalizeDungeonIds(ids: string[] | undefined): DungeonId[] {
 function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission): Partial<ResourceBag> {
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
 
-  if (directiveId === "research" && ["knowledge", "maze", "merge", "cipher"].includes(mission.id)) {
+  if (directiveId === "research" && studyMissionIds.has(mission.id)) {
     return { schematics: 1 };
+  }
+
+  if (directiveId === "alchemy" && studyMissionIds.has(mission.id)) {
+    return compactResources({
+      essence: 1,
+      schematics: profile.professionId === "enchanter" ? 1 : 0,
+    });
   }
 
   if (directiveId === "market") {
@@ -949,7 +986,16 @@ function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission)
 }
 
 function getDirectiveMissionXp(profile: GameProfile, mission: DailyMission) {
-  return getTeamDirective(profile.teamDirectiveId).id === "research" && ["knowledge", "maze", "merge", "cipher"].includes(mission.id) ? 6 : 0;
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  if (directiveId === "research" && studyMissionIds.has(mission.id)) {
+    return 6;
+  }
+
+  if (directiveId === "alchemy" && studyMissionIds.has(mission.id)) {
+    return profile.professionId === "enchanter" ? 12 : 8;
+  }
+
+  return 0;
 }
 
 function getDirectiveMissionContribution(profile: GameProfile) {
