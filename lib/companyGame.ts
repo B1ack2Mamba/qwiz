@@ -239,6 +239,7 @@ const studyMissionIds = new Set(["knowledge", "maze", "merge", "cipher", "crossw
 
 export const PROFESSION_SEASON_LENGTH_DAYS = 14;
 export const DAILY_COMBAT_TRAINING_REWARD_LIMIT = 3;
+export const HUNTER_COMBAT_TRAINING_REWARD_BONUS = 1;
 export const battleReadinessTiers: BattleReadinessTier[] = [
   {
     id: "patrol",
@@ -455,8 +456,8 @@ export const professions: Profession[] = [
     id: "warden",
     name: "Охотник",
     role: "Бои",
-    function: "Закрывает боевые комнаты подземелий и снижает угрозу месяца.",
-    bonus: "+15 к боевым подземельям",
+    function: "Проходит волны тренажера боя, фармит мобов и снижает угрозу месяца через личное мастерство.",
+    bonus: "+1 награда тренажера, больше готовности и добычи за волны",
     crest: "OH",
   },
   {
@@ -1017,6 +1018,16 @@ export function getCompanyObjective(profile: GameProfile, teamSize: number): Com
       title: `Пройти: ${readyDungeon.name}`,
       detail: `Доступен спуск ${readyDungeon.depth}: +${outcome.xp} XP и +${outcome.battleContribution} готовность.`,
       action: "Подземелья",
+    };
+  }
+
+  const combatTrainingRewardLimit = getCombatTrainingRewardLimit(profile);
+  if (profile.professionId === "warden" && profile.combatTrainingRewardsClaimed < combatTrainingRewardLimit) {
+    return {
+      id: "battle",
+      title: "Охота: зачистить волну",
+      detail: `Охотник может пройти тренажер боя и забрать усиленную награду ${profile.combatTrainingRewardsClaimed}/${combatTrainingRewardLimit}.`,
+      action: "Битва",
     };
   }
 
@@ -1610,30 +1621,47 @@ export function getCombatTrainingReward(profile: GameProfile, wave: number, defe
   const rankBonusPercent = getCombatTrainingRankBonus(rank);
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
   const tacticianPush = profile.professionId === "tactician" ? 1 : 0;
+  const isHunter = profile.professionId === "warden";
+  const hunterWaveMastery = isHunter ? 2 + Math.min(4, Math.floor(safeWave / 2)) : 0;
+  const hunterTrainingXp = isHunter ? 6 + safeWave * 2 : 0;
   const battleContribution = scaleRankReward(
     (profile.professionId === "tactician" ? 5 : 3) +
       safeWave +
+      hunterWaveMastery +
       (directiveId === "hunt" ? 2 + tacticianPush : directiveId === "command" ? 1 + tacticianPush : 0),
     rankBonusPercent,
   );
   const trainingXp = directiveId === "training" ? 10 + (profile.professionId === "tactician" ? 4 : 0) : 0;
   const resources = compactResources({
-    supplies: 1 + (rank === "S" || rank === "A" ? 1 : 0) + (directiveId === "hunt" && safeDefeatedCount >= 3 ? 1 : 0),
-    essence: (safeWave >= 2 ? 1 : 0) + (rank === "S" ? 1 : 0),
+    supplies:
+      1 +
+      (rank === "S" || rank === "A" ? 1 : 0) +
+      (directiveId === "hunt" && safeDefeatedCount >= 3 ? 1 : 0) +
+      (isHunter && safeDefeatedCount >= 3 ? 1 : 0),
+    essence: (safeWave >= 2 ? 1 : 0) + (rank === "S" ? 1 : 0) + (isHunter && safeWave >= 3 ? 1 : 0),
     ore: (safeDefeatedCount >= 4 ? 1 : 0) + (rank === "S" && safeWave >= 3 ? 1 : 0) + (directiveId === "craft" ? 1 : 0),
     coins: directiveId === "market" ? 2 + (rank === "S" || rank === "A" ? 1 : 0) : 0,
   });
 
   return {
-    xp: scaleRankReward(18 + safeWave * 8 + safeDefeatedCount * 4 + trainingXp, rankBonusPercent),
+    xp: scaleRankReward(18 + safeWave * 8 + safeDefeatedCount * 4 + trainingXp + hunterTrainingXp, rankBonusPercent),
     resources,
     battleContribution,
     rankBonusPercent,
   };
 }
 
+export function getCombatTrainingRewardLimit(profile: GameProfile) {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  return (
+    DAILY_COMBAT_TRAINING_REWARD_LIMIT +
+    (profile.professionId === "warden" ? HUNTER_COMBAT_TRAINING_REWARD_BONUS : 0) +
+    (directiveId === "hunt" ? 1 : 0)
+  );
+}
+
 export function canClaimCombatTrainingReward(profile: GameProfile) {
-  return profile.combatTrainingRewardsClaimed < DAILY_COMBAT_TRAINING_REWARD_LIMIT;
+  return profile.combatTrainingRewardsClaimed < getCombatTrainingRewardLimit(profile);
 }
 
 export function claimCombatTrainingReward(profile: GameProfile, wave: number, defeatedCount: number, rank: CombatTrainingRewardRank = "C") {

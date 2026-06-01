@@ -46,6 +46,43 @@
   color: var(--rose);
 }
 
+.hunterSpecialty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid rgba(180, 35, 57, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(244, 139, 151, 0.1), rgba(255, 242, 212, 0.18)),
+    #fffdf8;
+}
+
+.hunterSpecialty span,
+.hunterSpecialty em {
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.hunterSpecialty span {
+  color: var(--rose);
+}
+
+.hunterSpecialty strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.hunterSpecialty em {
+  color: var(--muted);
+  font-style: normal;
+  text-align: right;
+}
+
 .statGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
@@ -2477,6 +2514,14 @@
 @media (max-width: 760px) {
   .heading {
     flex-direction: column;
+  }
+
+  .hunterSpecialty {
+    grid-template-columns: 1fr;
+  }
+
+  .hunterSpecialty em {
+    text-align: left;
   }
 
   .statGrid {

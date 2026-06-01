@@ -3,11 +3,11 @@ import type { CSSProperties } from "react";
 import { getCharacterSpriteLabel, getCharacterSpritePosition, getCharacterSpriteSheet } from "./CharacterSpritePreview";
 import { professionWeaponEnhancement } from "./ProfessionAvatar3D";
 import {
-  DAILY_COMBAT_TRAINING_REWARD_LIMIT,
   CombatTrainingRewardRank,
   GameProfile,
   canClaimCombatTrainingReward,
   getCombatTrainingReward,
+  getCombatTrainingRewardLimit,
   getProfession,
   resourceLabels,
 } from "../lib/companyGame";
@@ -233,15 +233,17 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const rankBreakdown = getCombatTrainingRankBreakdown(combatState);
   const reward = getCombatTrainingReward(profile, combatState.wave, combatState.defeatedCount, rankSummary.rank);
   const rewardClaimed = claimedWaves.has(combatState.wave);
-  const rewardsLeft = Math.max(0, DAILY_COMBAT_TRAINING_REWARD_LIMIT - profile.combatTrainingRewardsClaimed);
+  const rewardLimit = getCombatTrainingRewardLimit(profile);
+  const rewardsLeft = Math.max(0, rewardLimit - profile.combatTrainingRewardsClaimed);
   const canClaimReward = combatState.status === "victory" && !rewardClaimed && canClaimCombatTrainingReward(profile);
   const nextWavePreview =
     combatState.status === "victory" ? getNextWavePreview(combatState, profile, heroPower) : null;
   const rewardLimitLabel = rewardClaimed
     ? "Награда этой волны уже получена."
     : rewardsLeft > 0
-      ? `Осталось наград сегодня: ${rewardsLeft}/${DAILY_COMBAT_TRAINING_REWARD_LIMIT}`
+      ? `Осталось наград сегодня: ${rewardsLeft}/${rewardLimit}`
       : "Дневной лимит наград исчерпан.";
+  const isHunterTraining = profile.professionId === "warden";
 
   return (
     <section className={styles.shell} aria-labelledby="combat-training-title">
@@ -253,6 +255,14 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
         <span className={statusClass(combatState.status)}>{statusLabel}</span>
       </div>
 
+      {isHunterTraining && (
+        <div className={styles.hunterSpecialty}>
+          <span>Охотничья серия</span>
+          <strong>Волны тренажера дают профильную добычу, XP и готовность команды.</strong>
+          <em>Лимит наград: {rewardLimit} в день</em>
+        </div>
+      )}
+
       <div className={styles.statGrid} aria-label="Состояние тренировки">
         <Stat label="Волна" value={String(combatState.wave)} />
         <Stat label="HP" value={`${Math.ceil(combatState.player.hp)}/${combatState.player.maxHp}`} />
@@ -260,7 +270,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
         <Stat label="Урон" value={hasPrecisionCounter ? `${combatState.player.attackDamage}+` : String(combatState.player.attackDamage)} />
         <Stat label="Цели" value={`${combatState.defeatedCount}/${combatState.enemies.length}`} />
         <Stat label="Комбо" value={`x${combatState.combo}/${combatState.maxCombo}`} />
-        <Stat label="Награды" value={`${rewardsLeft}/${DAILY_COMBAT_TRAINING_REWARD_LIMIT}`} />
+        <Stat label="Награды" value={`${rewardsLeft}/${rewardLimit}`} />
       </div>
 
       <div
