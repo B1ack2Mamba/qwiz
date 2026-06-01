@@ -1632,6 +1632,86 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.support-buff-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.support-buff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.support-buff-card {
+  display: grid;
+  gap: 12px;
+  align-content: space-between;
+  min-height: 248px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.support-buff-card.is-complete {
+  border-color: #9ed8c7;
+  background: #f0fbf6;
+}
+
+.support-buff-head {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.support-buff-crest {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 8px;
+  background: #2f6f9f;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.support-buff-card h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.support-buff-card p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.support-buff-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.support-buff-meta > div {
+  display: grid;
+  gap: 6px;
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf8;
+}
+
+.support-buff-meta > div > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .directive-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2029,7 +2109,8 @@ button {
   font-weight: 800;
 }
 
-.pathfinder-minigame-board {
+.pathfinder-minigame-board,
+.support-minigame-board {
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -2038,7 +2119,8 @@ button {
   background: #f9fbf8;
 }
 
-.pathfinder-minigame-board > span {
+.pathfinder-minigame-board > span,
+.support-minigame-board > span {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
@@ -2495,7 +2577,8 @@ button {
   .profession-grid,
   .enhancement-grid,
   .directive-grid,
-  .mission-grid {
+  .mission-grid,
+  .support-buff-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2634,7 +2717,8 @@ button {
     width: 82px;
   }
 
-  .mission-grid {
+  .mission-grid,
+  .support-buff-grid {
     grid-template-columns: 1fr;
   }
 

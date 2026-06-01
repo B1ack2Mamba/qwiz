@@ -28,12 +28,17 @@ import {
   PathfinderExpeditionId,
   PathfinderMiniGameId,
   ProfessionId,
+  SupportBuff,
+  SupportBuffId,
+  SupportBuffMiniGameId,
   TeamDirectiveId,
   battleReadinessTiers,
   canContributeToBattle,
   canEnterDungeon,
   canForgeEnhancement,
   canRunPathfinderExpedition,
+  canCastSupportBuff,
+  castSupportBuff,
   changeProfession,
   claimCombatTrainingReward,
   completePathfinderExpedition,
@@ -65,6 +70,9 @@ import {
   getProfessionChangeCost,
   getProfessionChangeMode,
   getProfessionSeason,
+  getSupportBuffCost,
+  getSupportBuffLockHint,
+  getSupportBuffOutcome,
   getTeamDirective,
   getPower,
   getProfession,
@@ -73,6 +81,8 @@ import {
   refreshDailyProfile,
   resourceLabels,
   setTeamDirective,
+  supportBuffMiniGameLabels,
+  supportBuffs,
   teamDirectives,
 } from "../lib/companyGame";
 
@@ -96,7 +106,19 @@ type PathfinderChallengeState = {
   solved: boolean;
 };
 
+type SupportChallengeState = {
+  buffId: SupportBuffId;
+  selected: string[];
+  solved: boolean;
+};
+
 type PathfinderChallengeConfig = {
+  hint: string;
+  options: string[];
+  sequence: string[];
+};
+
+type SupportChallengeConfig = {
   hint: string;
   options: string[];
   sequence: string[];
@@ -117,6 +139,24 @@ const pathfinderChallengeConfigs: Record<PathfinderMiniGameId, PathfinderChallen
     hint: "На механизме видны свежие царапины: II, IV, I.",
     options: ["I", "II", "III", "IV"],
     sequence: ["II", "IV", "I"],
+  },
+};
+
+const supportChallengeConfigs: Record<SupportBuffMiniGameId, SupportChallengeConfig> = {
+  quiz: {
+    hint: "Квиз лечения: сначала стабилизируем состояние, затем возвращаем резерв и фокус.",
+    options: ["Пульс", "Фокус", "Резерв", "Шум"],
+    sequence: ["Пульс", "Резерв", "Фокус"],
+  },
+  logic: {
+    hint: "Логика бафа: убрать шум, выбрать приоритет, закрепить действие.",
+    options: ["Данные", "Шум", "Приоритет", "Действие"],
+    sequence: ["Шум", "Приоритет", "Действие"],
+  },
+  pattern: {
+    hint: "Защитный паттерн строится от внешнего контура к центру: IV, II, I.",
+    options: ["I", "II", "III", "IV"],
+    sequence: ["IV", "II", "I"],
   },
 };
 
@@ -154,6 +194,7 @@ export default function HomePage() {
   const [toast, setToast] = useState<ToastState>({ message: "", visible: false });
   const [upgradeFlash, setUpgradeFlash] = useState<UpgradeFlashState | null>(null);
   const [pathfinderChallenge, setPathfinderChallenge] = useState<PathfinderChallengeState | null>(null);
+  const [supportChallenge, setSupportChallenge] = useState<SupportChallengeState | null>(null);
 
   const todayKey = useMemo(() => getTodayKey(), []);
   const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
@@ -350,6 +391,78 @@ export default function HomePage() {
 
     const nextProfile = completeMission(profile, mission);
     updateProfile(nextProfile, nextProfile === profile ? "Задание недоступно." : `Задание закрыто: ${mission.title}.`);
+  }
+
+  function startSupportBuff(buff: SupportBuff) {
+    if (!profile) {
+      return;
+    }
+
+    if (!canCastSupportBuff(profile, buff)) {
+      updateProfile(profile, getSupportBuffLockHint(profile, buff));
+      return;
+    }
+
+    setSupportChallenge({
+      buffId: buff.id,
+      selected: [],
+      solved: false,
+    });
+    showToast(`${supportBuffMiniGameLabels[buff.miniGameId]}: подготовка бафа началась.`);
+  }
+
+  function selectSupportChallengeStep(buff: SupportBuff, value: string) {
+    if (!supportChallenge || supportChallenge.buffId !== buff.id || supportChallenge.solved) {
+      return;
+    }
+
+    const sequence = getSupportChallengeConfig(buff).sequence;
+    const expected = sequence[supportChallenge.selected.length];
+    const selected = value === expected ? [...supportChallenge.selected, value] : [];
+    const solved = selected.length === sequence.length;
+
+    setSupportChallenge({
+      ...supportChallenge,
+      selected,
+      solved,
+    });
+
+    if (solved) {
+      showToast("Мини-игра саппорта решена. Баф готов.");
+    }
+  }
+
+  function resetSupportChallenge(buff: SupportBuff) {
+    setSupportChallenge((current) =>
+      current?.buffId === buff.id
+        ? {
+            buffId: buff.id,
+            selected: [],
+            solved: false,
+          }
+        : current,
+    );
+  }
+
+  function runSupportBuff(buff: SupportBuff) {
+    if (!profile) {
+      return;
+    }
+
+    if (supportChallenge?.buffId !== buff.id || !supportChallenge.solved) {
+      showToast("Сначала решите мини-игру саппорта.");
+      return;
+    }
+
+    const previousBuffs = profile.completedSupportBuffs.length;
+    const nextProfile = castSupportBuff(profile, buff);
+    setSupportChallenge(null);
+    updateProfile(
+      nextProfile,
+      nextProfile.completedSupportBuffs.length > previousBuffs
+        ? `Саппорт наложил баф: ${buff.name}.`
+        : getSupportBuffLockHint(profile, buff),
+    );
   }
 
   function runEnhancement(enhancement: Enhancement) {
@@ -844,6 +957,31 @@ export default function HomePage() {
                 );
               })}
             </div>
+            <div className="support-buff-panel">
+              <div className="panel-heading compact">
+                <div>
+                  <span className="section-kicker">Саппорт</span>
+                  <h3>Лечение и бафы команды</h3>
+                </div>
+                <span className="status-pill waiting">
+                  Бафов: {profile.completedSupportBuffs.length}/{supportBuffs.length}
+                </span>
+              </div>
+              <div className="support-buff-grid">
+                {supportBuffs.map((buff) => (
+                  <SupportBuffCard
+                    buff={buff}
+                    challenge={supportChallenge}
+                    key={buff.id}
+                    onClaim={() => runSupportBuff(buff)}
+                    onReset={() => resetSupportChallenge(buff)}
+                    onStart={() => startSupportBuff(buff)}
+                    onStep={(value) => selectSupportChallengeStep(buff, value)}
+                    profile={profile}
+                  />
+                ))}
+              </div>
+            </div>
           </section>
 
           <section className={`panel game-panel mobile-section${activeSection === "craft" ? " is-active" : ""}`}>
@@ -1169,6 +1307,128 @@ function getMissionBonusNotes(profile: GameProfile, mission: DailyMission) {
 
 function getPathfinderChallengeConfig(expedition: PathfinderExpedition) {
   return pathfinderChallengeConfigs[expedition.miniGameId];
+}
+
+function getSupportChallengeConfig(buff: SupportBuff) {
+  return supportChallengeConfigs[buff.miniGameId];
+}
+
+function SupportBuffCard({
+  buff,
+  challenge,
+  onClaim,
+  onReset,
+  onStart,
+  onStep,
+  profile,
+}: {
+  buff: SupportBuff;
+  challenge: SupportChallengeState | null;
+  onClaim: () => void;
+  onReset: () => void;
+  onStart: () => void;
+  onStep: (value: string) => void;
+  profile: GameProfile;
+}) {
+  const completed = profile.completedSupportBuffs.includes(buff.id);
+  const activeChallenge = challenge?.buffId === buff.id ? challenge : null;
+  const cost = getSupportBuffCost(profile, buff);
+  const outcome = getSupportBuffOutcome(profile, buff);
+  const canStart = canCastSupportBuff(profile, buff);
+  const lockHint = getSupportBuffLockHint(profile, buff);
+  const actionLabel = completed
+    ? "Наложено"
+    : activeChallenge?.solved
+      ? "Наложить"
+      : activeChallenge
+        ? "Мини-игра"
+        : canStart
+          ? "Начать"
+          : "Закрыто";
+  const actionDisabled = completed || (!activeChallenge && !canStart) || (Boolean(activeChallenge) && !activeChallenge?.solved);
+  const actionHandler = activeChallenge?.solved ? onClaim : onStart;
+
+  return (
+    <article className={`support-buff-card${completed ? " is-complete" : ""}`}>
+      <div className="support-buff-head">
+        <span className="support-buff-crest" aria-hidden="true">
+          {buff.crest}
+        </span>
+        <div>
+          <span className="section-kicker">
+            {buff.school} · {supportBuffMiniGameLabels[buff.miniGameId]}
+          </span>
+          <h3>{buff.name}</h3>
+          <p>{buff.description}</p>
+        </div>
+      </div>
+      <div className="support-buff-meta">
+        <div>
+          <span>Цена</span>
+          <RewardLine prefix="-" rewards={cost} />
+        </div>
+        <div>
+          <span>Итог</span>
+          <RewardLine
+            extras={[`+${outcome.powerGain} сила дня`, `+${outcome.xp} XP`, `+${outcome.battleContribution} готовность`]}
+            rewards={outcome.resources}
+          />
+        </div>
+      </div>
+      <span className={`dungeon-lock-hint${canStart ? " is-ready" : ""}`}>{lockHint}</span>
+      {activeChallenge && (
+        <SupportMiniGameBoard
+          buff={buff}
+          challenge={activeChallenge}
+          onReset={onReset}
+          onStep={onStep}
+        />
+      )}
+      <button className="secondary-button compact" disabled={actionDisabled} onClick={actionHandler} type="button">
+        {actionLabel}
+      </button>
+    </article>
+  );
+}
+
+function SupportMiniGameBoard({
+  buff,
+  challenge,
+  onReset,
+  onStep,
+}: {
+  buff: SupportBuff;
+  challenge: SupportChallengeState;
+  onReset: () => void;
+  onStep: (value: string) => void;
+}) {
+  const config = getSupportChallengeConfig(buff);
+
+  return (
+    <div className={`support-minigame-board is-${buff.miniGameId}`}>
+      <span>{config.hint}</span>
+      <div className="pathfinder-step-track" aria-label={supportBuffMiniGameLabels[buff.miniGameId]}>
+        {config.sequence.map((_, index) => (
+          <span
+            className={`${index < challenge.selected.length ? "is-done" : ""}${index === challenge.selected.length ? " is-current" : ""}`}
+            key={`${buff.id}-${index}`}
+          >
+            {index < challenge.selected.length ? challenge.selected[index] : index + 1}
+          </span>
+        ))}
+      </div>
+      <div className="pathfinder-choice-grid">
+        {config.options.map((option) => (
+          <button disabled={challenge.solved} key={option} onClick={() => onStep(option)} type="button">
+            {option}
+          </button>
+        ))}
+      </div>
+      <button className="secondary-button compact" disabled={challenge.selected.length === 0 && !challenge.solved} onClick={onReset} type="button">
+        Сбросить
+      </button>
+    </div>
+  );
 }
 
 function EnhancementCard({

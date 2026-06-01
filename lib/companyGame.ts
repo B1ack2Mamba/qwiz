@@ -9,6 +9,8 @@ export type EquipmentStatId = "strength" | "agility" | "intelligence" | "craft" 
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
 export type PathfinderMiniGameId = "maze" | "puzzle" | "lock";
 export type PathfinderExpeditionId = "archive-maze-cache" | "drone-lock-cache" | "ether-riddle-cache" | "command-vault-cache";
+export type SupportBuffMiniGameId = "quiz" | "logic" | "pattern";
+export type SupportBuffId = "renewal" | "focus" | "aegis";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
 export type TeamDirectiveId = "hunt" | "command" | "training" | "craft" | "research" | "alchemy" | "market";
@@ -53,6 +55,13 @@ export type DungeonOutcome = {
 
 export type PathfinderExpeditionOutcome = DungeonOutcome & {
   blueprints: EquipmentId[];
+};
+
+export type SupportBuffOutcome = {
+  xp: number;
+  resources: Partial<ResourceBag>;
+  battleContribution: number;
+  powerGain: number;
 };
 
 export type CompanyObjectiveId = "mission" | "craft" | "dungeon" | "battle" | "rest";
@@ -156,6 +165,19 @@ export type PathfinderExpedition = {
   teamContribution: number;
 };
 
+export type SupportBuff = {
+  id: SupportBuffId;
+  name: string;
+  school: string;
+  miniGameId: SupportBuffMiniGameId;
+  description: string;
+  cost: Partial<ResourceBag>;
+  rewards: Partial<ResourceBag>;
+  power: number;
+  battleContribution: number;
+  crest: string;
+};
+
 export type TeamDirective = {
   id: TeamDirectiveId;
   name: string;
@@ -189,6 +211,7 @@ export type GameProfile = {
   completedMissions: string[];
   completedDungeons: DungeonId[];
   completedPathfinderExpeditions: PathfinderExpeditionId[];
+  completedSupportBuffs: SupportBuffId[];
   battleContribution: number;
   combatTrainingRewardsClaimed: number;
   log: string[];
@@ -208,6 +231,7 @@ const pathfinderExpeditionIds: PathfinderExpeditionId[] = [
   "ether-riddle-cache",
   "command-vault-cache",
 ];
+const supportBuffIds: SupportBuffId[] = ["renewal", "focus", "aegis"];
 const DEFAULT_TEAM_DIRECTIVE_ID: TeamDirectiveId = "command";
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
 const BATTLE_READINESS_TARGET = 140;
@@ -270,6 +294,12 @@ export const equipmentStatLabels: Record<EquipmentStatId, string> = {
   craft: "Ремесло",
   economy: "Экономика",
   readiness: "Готовность",
+};
+
+export const supportBuffMiniGameLabels: Record<SupportBuffMiniGameId, string> = {
+  quiz: "Квиз",
+  logic: "Логика",
+  pattern: "Паттерн",
 };
 
 export const pathfinderMiniGames: Record<PathfinderMiniGameId, PathfinderMiniGame> = {
@@ -431,11 +461,11 @@ export const professions: Profession[] = [
   },
   {
     id: "artisan",
-    name: "Бронник",
-    role: "Оборона",
-    function: "Держит щиты, защитные стойки и устойчивость группы, пока гном закрывает добычу и крафт.",
-    bonus: "+устойчивость и щиты в боевых задачах",
-    crest: "RM",
+    name: "Саппорт",
+    role: "Лечение и бафы",
+    function: "Каждый день накладывает лечение, щиты и командные бафы через квизы и логические мини-игры.",
+    bonus: "+ежедневные бафы команды, лечение и готовность",
+    crest: "SP",
   },
   {
     id: "enchanter",
@@ -495,6 +525,45 @@ export const dailyMissions: DailyMission[] = [
     description: "Разобрать понятия о мотивации, привычках и психике людей, чтобы открыть алхимический паттерн навыка.",
     power: 32,
     rewards: { schematics: 2, essence: 1 },
+  },
+];
+
+export const supportBuffs: SupportBuff[] = [
+  {
+    id: "renewal",
+    name: "Пульс восстановления",
+    school: "Лечение",
+    miniGameId: "quiz",
+    description: "Саппорт отвечает на короткий квиз и поднимает запас команды на длинные забеги.",
+    cost: { essence: 1, supplies: 1 },
+    rewards: { supplies: 1 },
+    power: 9,
+    battleContribution: 5,
+    crest: "HP",
+  },
+  {
+    id: "focus",
+    name: "Фокус отдела",
+    school: "Баф",
+    miniGameId: "logic",
+    description: "Логическая мини-игра синхронизирует игроков и усиливает точность действий.",
+    cost: { schematics: 1, essence: 1 },
+    rewards: { schematics: 1 },
+    power: 10,
+    battleContribution: 4,
+    crest: "BF",
+  },
+  {
+    id: "aegis",
+    name: "Оберег смены",
+    school: "Защита",
+    miniGameId: "pattern",
+    description: "Задача на паттерны собирает защитный контур перед подземельями и битвой месяца.",
+    cost: { ore: 1, supplies: 1 },
+    rewards: {},
+    power: 12,
+    battleContribution: 6,
+    crest: "AR",
   },
 ];
 
@@ -741,6 +810,7 @@ export function createGameProfile(employeeId: string, dayKey: string): GameProfi
     completedMissions: [],
     completedDungeons: [],
     completedPathfinderExpeditions: [],
+    completedSupportBuffs: [],
     battleContribution: 0,
     combatTrainingRewardsClaimed: 0,
     log: ["Герой принят в корпоративную лигу."],
@@ -762,6 +832,7 @@ export function refreshDailyProfile(profile: GameProfile, dayKey: string) {
     completedMissions: [],
     completedDungeons: [],
     completedPathfinderExpeditions: [],
+    completedSupportBuffs: [],
     combatTrainingRewardsClaimed: 0,
     log: [`Новый игровой день открыт: ${dayKey}.`, ...normalized.log].slice(0, 8),
   });
@@ -821,6 +892,10 @@ export function getEquipment(id: EquipmentId) {
   return equipment.find((item) => item.id === id) || equipment[0];
 }
 
+export function getSupportBuff(id: SupportBuffId) {
+  return supportBuffs.find((buff) => buff.id === id) || supportBuffs[0];
+}
+
 export function getPathfinderMiniGame(id: PathfinderMiniGameId) {
   return pathfinderMiniGames[id] || pathfinderMiniGames.maze;
 }
@@ -839,11 +914,30 @@ export function getEnhancementPower(profile: GameProfile) {
   return basePower + alchemySkillPower;
 }
 
+export function getSupportBuffPower(profile: GameProfile) {
+  return profile.completedSupportBuffs.reduce((total, buffId) => total + getSupportBuff(buffId).power, 0);
+}
+
 export function getPower(profile: GameProfile) {
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
-  const professionPower = profile.professionId === "tactician" ? 20 : profile.professionId === "enchanter" && directiveId === "alchemy" ? 10 : 0;
+  const professionPower =
+    profile.professionId === "tactician"
+      ? 20
+      : profile.professionId === "enchanter" && directiveId === "alchemy"
+        ? 10
+        : profile.professionId === "artisan" && profile.completedSupportBuffs.length > 0
+          ? 6
+          : 0;
   const directivePower = directiveId === "command" ? 12 : 0;
-  return profile.level * 25 + getEnhancementPower(profile) + getEquipmentPower(profile) + profile.battleContribution + professionPower + directivePower;
+  return (
+    profile.level * 25 +
+    getEnhancementPower(profile) +
+    getEquipmentPower(profile) +
+    getSupportBuffPower(profile) +
+    profile.battleContribution +
+    professionPower +
+    directivePower
+  );
 }
 
 export function getDungeonPower(profile: GameProfile, dungeon: Dungeon) {
@@ -901,6 +995,17 @@ export function getCompanyObjective(profile: GameProfile, teamSize: number): Com
       title: `Разведать: ${readyExpedition.name}`,
       detail: `Следопыт готов к мини-игре: +${outcome.xp} XP, монеты/ресурсы${blueprintText}.`,
       action: "Подземелья",
+    };
+  }
+
+  const readySupportBuff = supportBuffs.find((buff) => canCastSupportBuff(profile, buff));
+  if (readySupportBuff) {
+    const outcome = getSupportBuffOutcome(profile, readySupportBuff);
+    return {
+      id: "mission",
+      title: `Наложить: ${readySupportBuff.name}`,
+      detail: `Саппорт готов закрыть мини-игру: +${outcome.powerGain} силы дня и +${outcome.battleContribution} готовность.`,
+      action: "Задания",
     };
   }
 
@@ -1137,6 +1242,108 @@ export function craftEquipment(profile: GameProfile, item: Equipment) {
 
   applyLevelUps(next);
   next.log.unshift(`Гном собрал снаряжение: ${item.name}.`);
+  return touch(next);
+}
+
+export function getSupportBuffCost(profile: GameProfile, buff: SupportBuff) {
+  const cost: Partial<ResourceBag> = { ...buff.cost };
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+
+  if (directiveId === "command" && (cost.supplies || 0) > 0) {
+    cost.supplies = Math.max(0, (cost.supplies || 0) - 1);
+  }
+
+  if (directiveId === "research" && buff.miniGameId === "logic" && (cost.schematics || 0) > 0) {
+    cost.schematics = Math.max(0, (cost.schematics || 0) - 1);
+  }
+
+  if (directiveId === "alchemy" && (cost.essence || 0) > 0) {
+    cost.essence = Math.max(0, (cost.essence || 0) - 1);
+  }
+
+  return compactResources(cost);
+}
+
+export function getSupportBuffShortfall(profile: GameProfile, buff: SupportBuff): Partial<ResourceBag> {
+  const cost = getSupportBuffCost(profile, buff);
+
+  return compactResources({
+    ore: Math.max(0, (cost.ore || 0) - profile.resources.ore),
+    essence: Math.max(0, (cost.essence || 0) - profile.resources.essence),
+    schematics: Math.max(0, (cost.schematics || 0) - profile.resources.schematics),
+    supplies: Math.max(0, (cost.supplies || 0) - profile.resources.supplies),
+    coins: Math.max(0, (cost.coins || 0) - profile.resources.coins),
+  });
+}
+
+export function getSupportBuffOutcome(profile: GameProfile, buff: SupportBuff): SupportBuffOutcome {
+  const directiveId = getTeamDirective(profile.teamDirectiveId).id;
+  const guardMastery = Math.min(6, (profile.enhancements.guard || 0) * 2);
+  const commandBonus = directiveId === "command" ? 2 : 0;
+  const trainingBonus = directiveId === "training" ? 8 : 0;
+
+  return {
+    xp: 18 + buff.power + guardMastery + trainingBonus,
+    resources: compactResources({
+      ore: buff.rewards.ore || 0,
+      essence: buff.rewards.essence || 0,
+      schematics: buff.rewards.schematics || 0,
+      supplies: buff.rewards.supplies || 0,
+      coins: (buff.rewards.coins || 0) + (directiveId === "market" ? 1 : 0),
+    }),
+    battleContribution: buff.battleContribution + commandBonus,
+    powerGain: buff.power + guardMastery,
+  };
+}
+
+export function canCastSupportBuff(profile: GameProfile, buff: SupportBuff) {
+  return (
+    profile.professionId === "artisan" &&
+    profile.energy > 0 &&
+    !profile.completedSupportBuffs.includes(buff.id) &&
+    hasResources(profile.resources, getSupportBuffCost(profile, buff))
+  );
+}
+
+export function getSupportBuffLockHint(profile: GameProfile, buff: SupportBuff) {
+  if (profile.completedSupportBuffs.includes(buff.id)) {
+    return "Сегодня уже наложено";
+  }
+
+  if (profile.professionId !== "artisan") {
+    return "Нужен Саппорт";
+  }
+
+  if (profile.energy <= 0) {
+    return "Нужна энергия для бафа";
+  }
+
+  const shortfall = getSupportBuffShortfall(profile, buff);
+  const missing = compactResources(shortfall);
+  if (Object.keys(missing).length > 0) {
+    return `Не хватает: ${formatResourceBag(missing)}`;
+  }
+
+  return `Готово: ${supportBuffMiniGameLabels[buff.miniGameId]}`;
+}
+
+export function castSupportBuff(profile: GameProfile, buff: SupportBuff) {
+  if (!canCastSupportBuff(profile, buff)) {
+    return profile;
+  }
+
+  const cost = getSupportBuffCost(profile, buff);
+  const outcome = getSupportBuffOutcome(profile, buff);
+  const next = cloneProfile(profile);
+  next.energy -= 1;
+  removeResources(next.resources, cost);
+  next.completedSupportBuffs.push(buff.id);
+  next.xp += outcome.xp;
+  next.battleContribution += outcome.battleContribution;
+  addRewards(next.resources, outcome.resources);
+
+  applyLevelUps(next);
+  next.log.unshift(`Саппорт наложил усиление: ${buff.name}.`);
   return touch(next);
 }
 
@@ -1523,6 +1730,7 @@ function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile
     completedMissions: Array.isArray(legacy.completedMissions) ? legacy.completedMissions.slice() : [],
     completedDungeons: normalizeDungeonIds(legacy.completedDungeons || legacy.defeatedMobs),
     completedPathfinderExpeditions: normalizePathfinderExpeditionIds(legacy.completedPathfinderExpeditions),
+    completedSupportBuffs: normalizeSupportBuffIds(legacy.completedSupportBuffs),
     battleContribution: Math.max(0, Math.floor(Number(legacy.battleContribution || 0))),
     combatTrainingRewardsClaimed: Math.max(0, Math.floor(Number(legacy.combatTrainingRewardsClaimed || 0))),
     log: Array.isArray(legacy.log) && legacy.log.length > 0 ? legacy.log.slice(0, 8) : ["Герой принят в корпоративную лигу."],
@@ -1565,6 +1773,15 @@ function normalizePathfinderExpeditionIds(ids: string[] | undefined): Pathfinder
 
   const validIds = new Set(pathfinderExpeditionIds);
   return ids.filter((id): id is PathfinderExpeditionId => validIds.has(id as PathfinderExpeditionId));
+}
+
+function normalizeSupportBuffIds(ids: string[] | undefined): SupportBuffId[] {
+  if (!Array.isArray(ids)) {
+    return [];
+  }
+
+  const validIds = new Set(supportBuffIds);
+  return ids.filter((id): id is SupportBuffId => validIds.has(id as SupportBuffId));
 }
 
 function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission): Partial<ResourceBag> {
@@ -1659,6 +1876,13 @@ function compactResources(resources: Partial<ResourceBag>) {
   }, {} as Partial<ResourceBag>);
 }
 
+function formatResourceBag(resources: Partial<ResourceBag>) {
+  return (Object.entries(resources) as Array<[ResourceId, number]>)
+    .filter(([, amount]) => amount > 0)
+    .map(([resource, amount]) => `${amount} ${resourceLabels[resource]}`)
+    .join(", ");
+}
+
 function getCombatTrainingRankBonus(rank: CombatTrainingRewardRank) {
   const bonuses: Record<CombatTrainingRewardRank, number> = {
     S: 35,
@@ -1704,6 +1928,7 @@ function cloneProfile(profile: GameProfile): GameProfile {
     completedMissions: profile.completedMissions.slice(),
     completedDungeons: profile.completedDungeons.slice(),
     completedPathfinderExpeditions: profile.completedPathfinderExpeditions.slice(),
+    completedSupportBuffs: profile.completedSupportBuffs.slice(),
     log: profile.log.slice(0, 8),
   };
 }

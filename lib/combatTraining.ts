@@ -733,8 +733,8 @@ function createCombatAbility(profile: GameProfile): CombatAbility {
     },
     artisan: {
       id: "guard-pulse",
-      name: "Щитовой импульс",
-      description: "Восстановление HP, неуязвимость и оглушение близких целей.",
+      name: "Импульс поддержки",
+      description: "Лечение, короткая защита и оглушение близких целей.",
       cooldownMs: Math.max(2100, 4300 - (profile.enhancements.guard || 0) * 130),
       power: profile.enhancements.guard || 0,
     },
@@ -927,7 +927,7 @@ function getProfessionCombatBonus(professionId: ProfessionId) {
     pathfinder: { damage: 1, dodge: 18, hp: 0, range: 10, speed: 0.018, stamina: 12, staminaRegen: 3 },
     miner: { damage: 3, dodge: -6, hp: 10, range: 0, speed: -0.004, stamina: 8, staminaRegen: 0 },
     warden: { damage: 6, dodge: 4, hp: 8, range: 0, speed: 0.006, stamina: 5, staminaRegen: 1 },
-    artisan: { damage: 2, dodge: 0, hp: 18, range: 0, speed: 0, stamina: 10, staminaRegen: 1 },
+    artisan: { damage: 1, dodge: 2, hp: 20, range: 4, speed: 0, stamina: 12, staminaRegen: 2 },
     enchanter: { damage: 3, dodge: 0, hp: 0, range: 18, speed: 0, stamina: 6, staminaRegen: 2 },
     tactician: { damage: 4, dodge: 6, hp: 6, range: 8, speed: 0.004, stamina: 7, staminaRegen: 2 },
   };
