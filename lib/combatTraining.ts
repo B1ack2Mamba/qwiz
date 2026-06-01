@@ -3,6 +3,8 @@ import { GameProfile, ProfessionId } from "./companyGame";
 export const ARENA_WIDTH = 1000;
 export const ARENA_HEIGHT = 560;
 const COMBO_WINDOW_MS = 2600;
+const DEFENSE_BREACH_X = 118;
+const DEFENSE_HIT_COOLDOWN_MS = 950;
 
 export type Vector2 = {
   x: number;
@@ -85,6 +87,9 @@ export type CombatEnemy = {
 export type CombatState = {
   player: CombatPlayer;
   enemies: CombatEnemy[];
+  defenseHp: number;
+  defenseMaxHp: number;
+  defenseHitReadyAt: number;
   wave: number;
   timeMs: number;
   combo: number;
@@ -107,6 +112,7 @@ export function createCombatTrainingState(profile: GameProfile, heroPower: numbe
   const profession = getProfessionCombatBonus(profile.professionId);
   const safeWave = Math.max(1, Math.floor(wave));
   const maxStamina = 100 + route * 7 + profession.stamina;
+  const defenseMaxHp = 150 + profile.level * 8 + guard * 18 + banner * 10 + profession.hp;
 
   return {
     player: {
@@ -137,6 +143,9 @@ export function createCombatTrainingState(profile: GameProfile, heroPower: numbe
       invulnerableUntil: 0,
     },
     enemies: createWaveEnemies(profile, heroPower, safeWave),
+    defenseHp: defenseMaxHp,
+    defenseMaxHp,
+    defenseHitReadyAt: 0,
     wave: safeWave,
     timeMs: 0,
     combo: 0,
@@ -190,6 +199,7 @@ export function getCombatTrainingRankBreakdown(state: CombatState): CombatRankBr
 export function createNextCombatTrainingWave(state: CombatState, profile: GameProfile, heroPower: number): CombatState {
   const next = createCombatTrainingState(profile, heroPower, state.wave + 1);
   next.player.hp = Math.min(next.player.maxHp, Math.max(1, state.player.hp) + Math.ceil(next.player.maxHp * 0.24));
+  next.defenseHp = Math.min(next.defenseMaxHp, Math.max(1, state.defenseHp) + Math.ceil(next.defenseMaxHp * 0.18));
   next.lastEvent = `Волна ${next.wave}: цели стали сильнее.`;
   return next;
 }
@@ -213,6 +223,8 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
   let comboUntil = state.comboUntil;
   const maxCombo = state.maxCombo;
   let damageTaken = state.damageTaken;
+  let defenseHp = state.defenseHp;
+  let defenseHitReadyAt = state.defenseHitReadyAt;
 
   if (status === "fighting") {
     const direction = normalize(move);
@@ -316,9 +328,26 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
       }
     }
 
+    if (timeMs >= defenseHitReadyAt) {
+      const breachers = enemies.filter((enemy) => enemy.hp > 0 && enemy.position.x - enemy.radius <= DEFENSE_BREACH_X);
+
+      if (breachers.length > 0) {
+        const breachDamage = breachers.reduce((sum, enemy) => sum + Math.max(3, Math.ceil(enemy.contactDamage * 0.7)), 0);
+        defenseHp = Math.max(0, defenseHp - breachDamage);
+        defenseHitReadyAt = timeMs + DEFENSE_HIT_COOLDOWN_MS;
+        lastEvent =
+          breachers.length === 1
+            ? `${breachers[0].name} давит защитный контур: -${breachDamage}.`
+            : `Прорыв у стены: -${breachDamage} прочности.`;
+      }
+    }
+
     if (player.hp <= 0) {
       status = "defeat";
       lastEvent = "Герой выбит из тренировки.";
+    } else if (defenseHp <= 0) {
+      status = "defeat";
+      lastEvent = "Защитный контур базы продавлен.";
     } else if (enemies.every((enemy) => enemy.hp <= 0)) {
       status = "victory";
       lastEvent = "Волна зачищена без потерь.";
@@ -329,6 +358,8 @@ export function stepCombatTraining(state: CombatState, move: Vector2, deltaMs: n
     ...state,
     player,
     enemies,
+    defenseHp,
+    defenseHitReadyAt,
     timeMs,
     combo,
     comboUntil,

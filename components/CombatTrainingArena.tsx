@@ -266,6 +266,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
       <div className={styles.statGrid} aria-label="Состояние тренировки">
         <Stat label="Волна" value={String(combatState.wave)} />
         <Stat label="HP" value={`${Math.ceil(combatState.player.hp)}/${combatState.player.maxHp}`} />
+        <Stat label="База" value={`${Math.ceil(combatState.defenseHp)}/${combatState.defenseMaxHp}`} />
         <Stat label="Вынос" value={`${Math.floor(combatState.player.stamina)}/${combatState.player.maxStamina}`} />
         <Stat label="Урон" value={hasPrecisionCounter ? `${combatState.player.attackDamage}+` : String(combatState.player.attackDamage)} />
         <Stat label="Цели" value={`${combatState.defeatedCount}/${combatState.enemies.length}`} />
@@ -477,6 +478,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                     <span>Волна {nextWavePreview.wave}</span>
                     <span>{nextWavePreview.enemyCount} целей</span>
                     <span>Старт HP {nextWavePreview.startHp}/{nextWavePreview.maxHp}</span>
+                    <span>База {nextWavePreview.startDefenseHp}/{nextWavePreview.defenseMaxHp}</span>
                     <span>{nextWavePreview.totalHp} HP врагов</span>
                     <span>Угроза {nextWavePreview.maxThreat}</span>
                     <span>{nextWavePreview.riskLabel}</span>
@@ -563,13 +565,20 @@ function getNextWavePreview(state: CombatState, profile: GameProfile, heroPower:
     0,
   );
   const startHp = Math.min(next.player.maxHp, Math.max(1, Math.ceil(state.player.hp)) + Math.ceil(next.player.maxHp * 0.24));
-  const riskScore = maxThreat / Math.max(1, startHp) + totalHp / Math.max(1, next.player.attackDamage * 16);
+  const startDefenseHp = Math.min(
+    next.defenseMaxHp,
+    Math.max(1, Math.ceil(state.defenseHp)) + Math.ceil(next.defenseMaxHp * 0.18),
+  );
+  const defensePressure = startDefenseHp / next.defenseMaxHp < 0.5 ? 0.35 : 0;
+  const riskScore = maxThreat / Math.max(1, startHp) + totalHp / Math.max(1, next.player.attackDamage * 16) + defensePressure;
 
   return {
+    defenseMaxHp: next.defenseMaxHp,
     enemyCount: next.enemies.length,
     maxHp: next.player.maxHp,
     maxThreat,
     riskLabel: getNextWaveRiskLabel(riskScore),
+    startDefenseHp,
     startHp,
     totalHp,
     wave: next.wave,
