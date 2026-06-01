@@ -49,6 +49,7 @@ import {
   getEnhancement,
   getEnhancementCost,
   getEnhancementOutcome,
+  getEnhancementShortfall,
   getMissionOutcome,
   getProfessionChangeCost,
   getProfessionChangeMode,
@@ -949,6 +950,7 @@ function EnhancementCard({
   const stacks = profile.enhancements[enhancement.id] || 0;
   const cost = getEnhancementCost(profile, enhancement);
   const outcome = getEnhancementOutcome(profile, enhancement);
+  const shortfall = getEnhancementShortfall(profile, enhancement);
   const canForge = canForgeEnhancement(profile, enhancement);
 
   return (
@@ -982,6 +984,9 @@ function EnhancementCard({
       <div>
         <span className="section-kicker">Цена</span>
         <RewardLine prefix="-" rewards={cost} />
+        <span className={`enhancement-lock-hint${canForge ? " is-ready" : ""}`}>
+          {canForge ? "Готово к ковке" : `Не хватает: ${formatResourceList(shortfall)}`}
+        </span>
       </div>
       <div>
         <span className="section-kicker">Итог ковки</span>

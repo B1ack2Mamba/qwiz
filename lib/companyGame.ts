@@ -626,6 +626,17 @@ export function canForgeEnhancement(profile: GameProfile, enhancement: Enhanceme
   return hasResources(profile.resources, getEnhancementCost(profile, enhancement));
 }
 
+export function getEnhancementShortfall(profile: GameProfile, enhancement: Enhancement): Partial<ResourceBag> {
+  const cost = getEnhancementCost(profile, enhancement);
+
+  return compactResources({
+    ore: Math.max(0, (cost.ore || 0) - profile.resources.ore),
+    essence: Math.max(0, (cost.essence || 0) - profile.resources.essence),
+    schematics: Math.max(0, (cost.schematics || 0) - profile.resources.schematics),
+    supplies: Math.max(0, (cost.supplies || 0) - profile.resources.supplies),
+  });
+}
+
 export function getEnhancementOutcome(profile: GameProfile, enhancement: Enhancement): EnhancementOutcome {
   return {
     xp: 12 + enhancement.power,
