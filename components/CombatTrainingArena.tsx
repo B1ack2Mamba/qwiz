@@ -232,6 +232,11 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const rewardClaimed = claimedWaves.has(combatState.wave);
   const rewardsLeft = Math.max(0, DAILY_COMBAT_TRAINING_REWARD_LIMIT - profile.combatTrainingRewardsClaimed);
   const canClaimReward = combatState.status === "victory" && !rewardClaimed && canClaimCombatTrainingReward(profile);
+  const rewardLimitLabel = rewardClaimed
+    ? "Награда этой волны уже получена."
+    : rewardsLeft > 0
+      ? `Осталось наград сегодня: ${rewardsLeft}/${DAILY_COMBAT_TRAINING_REWARD_LIMIT}`
+      : "Дневной лимит наград исчерпан.";
 
   return (
     <section className={styles.shell} aria-labelledby="combat-training-title">
@@ -449,6 +454,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                     </span>
                   ))}
                 </div>
+                <span className={styles.rewardLimitHint}>{rewardLimitLabel}</span>
               </div>
               <div className={styles.resultActions}>
                 <button className={styles.rewardButton} disabled={!canClaimReward} onClick={claimReward} type="button">
