@@ -466,8 +466,10 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                   <div className={styles.nextWavePreview} aria-label="Следующая волна">
                     <span>Волна {nextWavePreview.wave}</span>
                     <span>{nextWavePreview.enemyCount} целей</span>
+                    <span>Старт HP {nextWavePreview.startHp}/{nextWavePreview.maxHp}</span>
                     <span>{nextWavePreview.totalHp} HP врагов</span>
                     <span>Угроза {nextWavePreview.maxThreat}</span>
+                    <span>{nextWavePreview.riskLabel}</span>
                   </div>
                 )}
               </div>
@@ -550,13 +552,30 @@ function getNextWavePreview(state: CombatState, profile: GameProfile, heroPower:
     (highest, enemy) => Math.max(highest, enemy.attackDamage + enemy.contactDamage),
     0,
   );
+  const startHp = Math.min(next.player.maxHp, Math.max(1, Math.ceil(state.player.hp)) + Math.ceil(next.player.maxHp * 0.24));
+  const riskScore = maxThreat / Math.max(1, startHp) + totalHp / Math.max(1, next.player.attackDamage * 16);
 
   return {
     enemyCount: next.enemies.length,
+    maxHp: next.player.maxHp,
     maxThreat,
+    riskLabel: getNextWaveRiskLabel(riskScore),
+    startHp,
     totalHp,
     wave: next.wave,
   };
+}
+
+function getNextWaveRiskLabel(score: number) {
+  if (score >= 2.5) {
+    return "Риск высокий";
+  }
+
+  if (score >= 1.8) {
+    return "Риск средний";
+  }
+
+  return "Риск под контролем";
 }
 
 function getNextRankGoal(score: number) {
