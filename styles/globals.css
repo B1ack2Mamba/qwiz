@@ -1757,6 +1757,23 @@ button {
   color: var(--muted);
 }
 
+.mission-bonus-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -2px;
+}
+
+.mission-bonus-line span {
+  min-height: 24px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eef7fb;
+  color: #2f6f9f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .enhancement-lock-hint {
   display: block;
   margin-top: 7px;

@@ -76,6 +76,7 @@ const gameSections: Array<{ id: GameSectionId; label: string }> = [
   { id: "craft", label: "Усиления" },
   { id: "battle", label: "Битва" },
 ];
+const directivePuzzleMissionIds = new Set(["knowledge", "maze", "merge", "cipher"]);
 
 type ToastState = {
   message: string;
@@ -689,6 +690,7 @@ export default function HomePage() {
               {dailyMissions.map((mission) => {
                 const completed = profile.completedMissions.includes(mission.id);
                 const outcome = getMissionOutcome(profile, mission);
+                const bonusNotes = getMissionBonusNotes(profile, mission);
                 return (
                   <article className={`mission-card${completed ? " is-complete" : ""}`} key={mission.id}>
                     <div>
@@ -703,6 +705,13 @@ export default function HomePage() {
                       ]}
                       rewards={outcome.resources}
                     />
+                    {bonusNotes.length > 0 && (
+                      <div className="mission-bonus-line" aria-label="Активные бонусы задания">
+                        {bonusNotes.map((note) => (
+                          <span key={note}>{note}</span>
+                        ))}
+                      </div>
+                    )}
                     <button
                       className="primary-button compact"
                       disabled={completed || profile.energy <= 0}
@@ -934,6 +943,32 @@ function formatResourceList(resources: Partial<Record<keyof typeof resourceLabel
     .filter(([, amount]) => amount > 0)
     .map(([resource, amount]) => `${amount} ${resourceLabels[resource]}`)
     .join(", ");
+}
+
+function getMissionBonusNotes(profile: GameProfile, mission: DailyMission) {
+  const notes: string[] = [];
+
+  if (profile.teamDirectiveId === "research" && directivePuzzleMissionIds.has(mission.id)) {
+    notes.push(`Приказ: +1 ${resourceLabels.schematics}, +6 XP`);
+  }
+
+  if (profile.teamDirectiveId === "market") {
+    notes.push(`Приказ: +1 ${resourceLabels.supplies}`);
+  }
+
+  if (profile.teamDirectiveId === "hunt") {
+    notes.push("Приказ: +2 готовность");
+  }
+
+  if (profile.teamDirectiveId === "command") {
+    notes.push("Приказ: +1 готовность");
+  }
+
+  if (profile.professionId === "miner") {
+    notes.push(`Профессия: +1 ${resourceLabels.ore}`);
+  }
+
+  return notes;
 }
 
 function EnhancementCard({
