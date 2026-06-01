@@ -1,8 +1,11 @@
 import { formatUtcDateKey, parseDateKey } from "./qwizData";
 
 export type ProfessionId = "pathfinder" | "miner" | "warden" | "artisan" | "enchanter" | "tactician";
-export type ResourceId = "ore" | "essence" | "schematics" | "supplies";
+export type ResourceId = "ore" | "essence" | "schematics" | "supplies" | "coins";
 export type EnhancementId = "strike" | "guard" | "route" | "spark" | "workbench" | "banner";
+export type EquipmentId = "dwarven-pickaxe" | "route-amulet" | "shift-plate" | "ether-lens" | "command-signet";
+export type EquipmentSlot = "tool" | "weapon" | "armor" | "relic";
+export type EquipmentStatId = "strength" | "agility" | "intelligence" | "craft" | "economy" | "readiness";
 export type DungeonId = "archive-depths" | "drone-nest" | "ether-vault" | "command-core";
 export type ProfessionChangeMode = "selected" | "free" | "paid" | "blocked";
 export type CombatTrainingRewardRank = "S" | "A" | "B" | "C";
@@ -10,6 +13,8 @@ export type TeamDirectiveId = "hunt" | "command" | "research" | "alchemy" | "mar
 
 export type ResourceBag = Record<ResourceId, number>;
 export type EnhancementBag = Record<EnhancementId, number>;
+export type EquipmentBag = Record<EquipmentId, number>;
+export type EquipmentStatBag = Partial<Record<EquipmentStatId, number>>;
 export type TrainingReward = {
   xp: number;
   resources: Partial<ResourceBag>;
@@ -28,6 +33,14 @@ export type EnhancementOutcome = {
   resources: Partial<ResourceBag>;
   battleContribution: number;
   powerGain: number;
+};
+
+export type EquipmentOutcome = {
+  xp: number;
+  resources: Partial<ResourceBag>;
+  battleContribution: number;
+  powerGain: number;
+  stats: EquipmentStatBag;
 };
 
 export type DungeonOutcome = {
@@ -91,6 +104,17 @@ export type Enhancement = {
   crest: string;
 };
 
+export type Equipment = {
+  id: EquipmentId;
+  name: string;
+  slot: EquipmentSlot;
+  tier: number;
+  description: string;
+  blueprintDungeonId: DungeonId;
+  cost: Partial<ResourceBag>;
+  stats: EquipmentStatBag;
+};
+
 export type Dungeon = {
   id: DungeonId;
   name: string;
@@ -123,6 +147,7 @@ export type GameProfile = {
   energy: number;
   resources: ResourceBag;
   enhancements: EnhancementBag;
+  equipment: EquipmentBag;
   completedMissions: string[];
   completedDungeons: DungeonId[];
   battleContribution: number;
@@ -137,6 +162,7 @@ type LegacyGameProfile = Partial<GameProfile> & {
 };
 
 const enhancementIds: EnhancementId[] = ["strike", "guard", "route", "spark", "workbench", "banner"];
+const equipmentIds: EquipmentId[] = ["dwarven-pickaxe", "route-amulet", "shift-plate", "ether-lens", "command-signet"];
 const DEFAULT_TEAM_DIRECTIVE_ID: TeamDirectiveId = "command";
 const PROFESSION_SEASON_EPOCH_KEY = "2026-01-05";
 const BATTLE_READINESS_TARGET = 140;
@@ -189,6 +215,16 @@ export const resourceLabels: Record<ResourceId, string> = {
   essence: "Эфир",
   schematics: "Схемы",
   supplies: "Провиант",
+  coins: "Монеты",
+};
+
+export const equipmentStatLabels: Record<EquipmentStatId, string> = {
+  strength: "Сила",
+  agility: "Ловкость",
+  intelligence: "Интеллект",
+  craft: "Ремесло",
+  economy: "Экономика",
+  readiness: "Готовность",
 };
 
 export const teamDirectives: TeamDirective[] = [
@@ -223,9 +259,9 @@ export const teamDirectives: TeamDirective[] = [
   {
     id: "market",
     name: "Рынок",
-    focus: "Деньги, ресурсы, крафт",
-    description: "Отряд работает через снабжение: больше провианта и дешевле часть крафта.",
-    bonus: "+провиант за задания, -1 провиант в цене усилений и вклада",
+    focus: "Монеты, ресурсы, сделки",
+    description: "Отряд работает через снабжение: больше монет и провианта, дешевле часть расходов.",
+    bonus: "+монеты и провиант за задания, -1 провиант в цене усилений и вклада",
   },
 ];
 
@@ -240,10 +276,10 @@ export const professions: Profession[] = [
   },
   {
     id: "miner",
-    name: "Добытчик",
-    role: "Ресурсы",
-    function: "Приносит металл и провиант для усилений команды.",
-    bonus: "+1 металл за ежедневные задания",
+    name: "Гном-мастер",
+    role: "Добыча и крафт",
+    function: "Добывает металл и монеты, а по магическим чертежам открывает команде новое снаряжение.",
+    bonus: "+1 металл и +2 монеты за задания, дешевле ковка",
     crest: "DB",
   },
   {
@@ -256,10 +292,10 @@ export const professions: Profession[] = [
   },
   {
     id: "artisan",
-    name: "Ремесленник",
-    role: "Крафт",
-    function: "Создает усиления дешевле и разгоняет прогресс команды.",
-    bonus: "-1 металл к ковке усилений",
+    name: "Бронник",
+    role: "Оборона",
+    function: "Держит щиты, защитные стойки и устойчивость группы, пока гном закрывает добычу и крафт.",
+    bonus: "+устойчивость и щиты в боевых задачах",
     crest: "RM",
   },
   {
@@ -362,9 +398,9 @@ export const enhancements: Enhancement[] = [
   },
   {
     id: "workbench",
-    name: "Полевой верстак",
+    name: "Гномий верстак",
     school: "Крафт",
-    description: "Позволяет чинить находки прямо в подземелье и добывать больше схем.",
+    description: "Позволяет гному собирать снаряжение по магическим чертежам и чинить находки прямо в подземелье.",
     power: 9,
     cost: { ore: 1, schematics: 1 },
     crest: "WK",
@@ -377,6 +413,59 @@ export const enhancements: Enhancement[] = [
     power: 14,
     cost: { essence: 1, supplies: 2 },
     crest: "BN",
+  },
+];
+
+export const equipment: Equipment[] = [
+  {
+    id: "dwarven-pickaxe",
+    name: "Кобальтовая кирка",
+    slot: "tool",
+    tier: 1,
+    description: "Гномий инструмент для стабильной добычи металла, монет и редких материалов.",
+    blueprintDungeonId: "archive-depths",
+    cost: { ore: 2, schematics: 1, coins: 4 },
+    stats: { strength: 1, craft: 1, economy: 2 },
+  },
+  {
+    id: "route-amulet",
+    name: "Амулет короткого пути",
+    slot: "relic",
+    tier: 1,
+    description: "Чертеж следопыта: ускоряет маршруты, разведку и аккуратный фарм подземелий.",
+    blueprintDungeonId: "archive-depths",
+    cost: { essence: 1, schematics: 2, coins: 5 },
+    stats: { agility: 2, intelligence: 1, economy: 1 },
+  },
+  {
+    id: "shift-plate",
+    name: "Пластина смены",
+    slot: "armor",
+    tier: 2,
+    description: "Броня для долгих забегов: больше живучести и надежнее вклад в месячную битву.",
+    blueprintDungeonId: "drone-nest",
+    cost: { ore: 3, supplies: 1, coins: 6 },
+    stats: { strength: 3, readiness: 1 },
+  },
+  {
+    id: "ether-lens",
+    name: "Эфирная линза",
+    slot: "relic",
+    tier: 3,
+    description: "Алхимическое снаряжение для магов: усиливает интеллект, изучение и редкие навыки.",
+    blueprintDungeonId: "ether-vault",
+    cost: { essence: 3, schematics: 2, coins: 8 },
+    stats: { intelligence: 3, craft: 1 },
+  },
+  {
+    id: "command-signet",
+    name: "Печать отряда",
+    slot: "weapon",
+    tier: 4,
+    description: "Снаряжение поздней игры: сбалансированные характеристики и сильная готовность команды.",
+    blueprintDungeonId: "command-core",
+    cost: { essence: 2, schematics: 2, supplies: 2, coins: 10 },
+    stats: { strength: 1, agility: 1, intelligence: 1, readiness: 3 },
   },
 ];
 
@@ -446,8 +535,10 @@ export function createGameProfile(employeeId: string, dayKey: string): GameProfi
       essence: 2,
       schematics: 2,
       supplies: 3,
+      coins: 6,
     },
     enhancements: createEnhancementBag(),
+    equipment: createEquipmentBag(),
     completedMissions: [],
     completedDungeons: [],
     battleContribution: 0,
@@ -521,6 +612,10 @@ export function getEnhancement(id: EnhancementId) {
   return enhancements.find((enhancement) => enhancement.id === id) || enhancements[0];
 }
 
+export function getEquipment(id: EquipmentId) {
+  return equipment.find((item) => item.id === id) || equipment[0];
+}
+
 export function getEnhancementPower(profile: GameProfile) {
   const basePower = enhancements.reduce((total, enhancement) => {
     return total + (profile.enhancements[enhancement.id] || 0) * enhancement.power;
@@ -535,7 +630,7 @@ export function getPower(profile: GameProfile) {
   const directiveId = getTeamDirective(profile.teamDirectiveId).id;
   const professionPower = profile.professionId === "tactician" ? 20 : profile.professionId === "enchanter" && directiveId === "alchemy" ? 10 : 0;
   const directivePower = directiveId === "command" ? 12 : 0;
-  return profile.level * 25 + getEnhancementPower(profile) + profile.battleContribution + professionPower + directivePower;
+  return profile.level * 25 + getEnhancementPower(profile) + getEquipmentPower(profile) + profile.battleContribution + professionPower + directivePower;
 }
 
 export function getDungeonPower(profile: GameProfile, dungeon: Dungeon) {
@@ -544,7 +639,8 @@ export function getDungeonPower(profile: GameProfile, dungeon: Dungeon) {
 
 export function getMonthlyBattleReadiness(profile: GameProfile, teamSize: number) {
   const safeTeamSize = Math.max(0, Math.floor(teamSize));
-  return Math.min(100, Math.round(((profile.battleContribution + safeTeamSize * 8) / BATTLE_READINESS_TARGET) * 100));
+  const equipmentReadiness = (getEquipmentStats(profile).readiness || 0) * 3;
+  return Math.min(100, Math.round(((profile.battleContribution + equipmentReadiness + safeTeamSize * 8) / BATTLE_READINESS_TARGET) * 100));
 }
 
 export function getBattleReadinessPlan(profile: GameProfile, teamSize: number): BattleReadinessPlan {
@@ -632,7 +728,7 @@ export function getEnhancementCost(profile: GameProfile, enhancement: Enhancemen
     cost.supplies = (cost.supplies || 0) + 1;
   }
 
-  if (profile.professionId === "artisan" && (cost.ore || 0) > 0) {
+  if (profile.professionId === "miner" && (cost.ore || 0) > 0) {
     cost.ore = Math.max(0, (cost.ore || 0) - 1);
   }
 
@@ -676,6 +772,97 @@ export function getEnhancementOutcome(profile: GameProfile, enhancement: Enhance
     battleContribution: enhancement.id === "banner" ? 4 : alchemySkill ? 1 : 2,
     powerGain: enhancement.power + (alchemySkill ? 4 : 0),
   };
+}
+
+export function getEquipmentStats(profile: GameProfile): EquipmentStatBag {
+  return equipment.reduce((stats, item) => {
+    if ((profile.equipment[item.id] || 0) <= 0) {
+      return stats;
+    }
+
+    for (const [stat, amount] of Object.entries(item.stats) as Array<[EquipmentStatId, number]>) {
+      stats[stat] = (stats[stat] || 0) + amount;
+    }
+
+    return stats;
+  }, {} as EquipmentStatBag);
+}
+
+export function getEquipmentPower(profile: GameProfile) {
+  return getEquipmentStatPower(getEquipmentStats(profile));
+}
+
+export function hasEquipmentBlueprint(profile: GameProfile, item: Equipment) {
+  return profile.completedDungeons.includes(item.blueprintDungeonId);
+}
+
+export function getEquipmentCost(profile: GameProfile, item: Equipment) {
+  const cost: Partial<ResourceBag> = { ...item.cost };
+  const workbenchLevel = profile.enhancements.workbench || 0;
+
+  if (profile.professionId === "miner") {
+    cost.coins = Math.max(0, (cost.coins || 0) - 1 - Math.floor(workbenchLevel / 2));
+    if (workbenchLevel > 0 && (cost.ore || 0) > 0) {
+      cost.ore = Math.max(0, (cost.ore || 0) - 1);
+    }
+  }
+
+  if (getTeamDirective(profile.teamDirectiveId).id === "market" && (cost.coins || 0) > 0) {
+    cost.coins = Math.max(0, (cost.coins || 0) - 1);
+  }
+
+  return compactResources(cost);
+}
+
+export function getEquipmentShortfall(profile: GameProfile, item: Equipment): Partial<ResourceBag> {
+  const cost = getEquipmentCost(profile, item);
+
+  return compactResources({
+    ore: Math.max(0, (cost.ore || 0) - profile.resources.ore),
+    essence: Math.max(0, (cost.essence || 0) - profile.resources.essence),
+    schematics: Math.max(0, (cost.schematics || 0) - profile.resources.schematics),
+    supplies: Math.max(0, (cost.supplies || 0) - profile.resources.supplies),
+    coins: Math.max(0, (cost.coins || 0) - profile.resources.coins),
+  });
+}
+
+export function getEquipmentOutcome(item: Equipment): EquipmentOutcome {
+  const powerGain = getEquipmentStatPower(item.stats);
+  return {
+    xp: 18 + item.tier * 12 + powerGain,
+    resources: {},
+    battleContribution: item.stats.readiness ? item.stats.readiness * 2 : 0,
+    powerGain,
+    stats: item.stats,
+  };
+}
+
+export function canCraftEquipment(profile: GameProfile, item: Equipment) {
+  return (
+    profile.professionId === "miner" &&
+    (profile.equipment[item.id] || 0) <= 0 &&
+    hasEquipmentBlueprint(profile, item) &&
+    hasResources(profile.resources, getEquipmentCost(profile, item))
+  );
+}
+
+export function craftEquipment(profile: GameProfile, item: Equipment) {
+  if (!canCraftEquipment(profile, item)) {
+    return profile;
+  }
+
+  const cost = getEquipmentCost(profile, item);
+  const outcome = getEquipmentOutcome(item);
+  const next = cloneProfile(profile);
+  removeResources(next.resources, cost);
+  next.equipment[item.id] = 1;
+  next.xp += outcome.xp;
+  next.battleContribution += outcome.battleContribution;
+  addRewards(next.resources, outcome.resources);
+
+  applyLevelUps(next);
+  next.log.unshift(`Гном собрал снаряжение: ${item.name}.`);
+  return touch(next);
 }
 
 export function hasDungeonRequirements(profile: GameProfile, dungeon: Dungeon) {
@@ -733,6 +920,7 @@ export function getMissionOutcome(profile: GameProfile, mission: DailyMission): 
     essence: (mission.rewards.essence || 0) + (directiveRewards.essence || 0),
     schematics: (mission.rewards.schematics || 0) + (directiveRewards.schematics || 0),
     supplies: (mission.rewards.supplies || 0) + (directiveRewards.supplies || 0),
+    coins: (mission.rewards.coins || 0) + (directiveRewards.coins || 0) + (profile.professionId === "miner" ? 2 : 0),
   });
 
   return {
@@ -916,6 +1104,13 @@ function createEnhancementBag(initial: Partial<EnhancementBag> = {}): Enhancemen
   }, {} as EnhancementBag);
 }
 
+function createEquipmentBag(initial: Partial<EquipmentBag> = {}): EquipmentBag {
+  return equipmentIds.reduce((bag, id) => {
+    bag[id] = Math.max(0, Math.floor(Number(initial[id] || 0)));
+    return bag;
+  }, {} as EquipmentBag);
+}
+
 function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile {
   const legacy = profile as LegacyGameProfile;
   const legacyWeapon = Math.max(0, Number(legacy.gear?.weapon || 0));
@@ -937,6 +1132,7 @@ function normalizeGameProfile(profile: GameProfile, dayKey: string): GameProfile
     energy: Math.max(0, Math.floor(Number(legacy.energy ?? 4))),
     resources: normalizeResources(legacy.resources),
     enhancements: migratedEnhancements,
+    equipment: createEquipmentBag(legacy.equipment),
     completedMissions: Array.isArray(legacy.completedMissions) ? legacy.completedMissions.slice() : [],
     completedDungeons: normalizeDungeonIds(legacy.completedDungeons || legacy.defeatedMobs),
     battleContribution: Math.max(0, Math.floor(Number(legacy.battleContribution || 0))),
@@ -952,6 +1148,7 @@ function normalizeResources(resources: Partial<ResourceBag> | undefined): Resour
     essence: Math.max(0, Math.floor(Number(resources?.essence || 0))),
     schematics: Math.max(0, Math.floor(Number(resources?.schematics || 0))),
     supplies: Math.max(0, Math.floor(Number(resources?.supplies || 0))),
+    coins: Math.max(0, Math.floor(Number(resources?.coins || 0))),
   };
 }
 
@@ -979,7 +1176,7 @@ function getDirectiveMissionRewards(profile: GameProfile, mission: DailyMission)
   }
 
   if (directiveId === "market") {
-    return { supplies: 1 };
+    return { supplies: 1, coins: 2 };
   }
 
   return {};
@@ -1059,6 +1256,17 @@ function scaleRankReward(value: number, bonusPercent: number) {
   return Math.max(0, Math.round(value * (1 + bonusPercent / 100)));
 }
 
+function getEquipmentStatPower(stats: EquipmentStatBag) {
+  return (
+    (stats.strength || 0) * 7 +
+    (stats.agility || 0) * 5 +
+    (stats.intelligence || 0) * 6 +
+    (stats.craft || 0) * 4 +
+    (stats.economy || 0) * 3 +
+    (stats.readiness || 0) * 5
+  );
+}
+
 function applyLevelUps(profile: GameProfile) {
   while (profile.xp >= profile.level * 90) {
     profile.xp -= profile.level * 90;
@@ -1073,6 +1281,7 @@ function cloneProfile(profile: GameProfile): GameProfile {
     ...profile,
     resources: { ...profile.resources },
     enhancements: { ...profile.enhancements },
+    equipment: { ...profile.equipment },
     completedMissions: profile.completedMissions.slice(),
     completedDungeons: profile.completedDungeons.slice(),
     log: profile.log.slice(0, 8),
