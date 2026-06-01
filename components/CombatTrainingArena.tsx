@@ -250,6 +250,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
         <Stat label="Урон" value={hasPrecisionCounter ? `${combatState.player.attackDamage}+` : String(combatState.player.attackDamage)} />
         <Stat label="Цели" value={`${combatState.defeatedCount}/${combatState.enemies.length}`} />
         <Stat label="Комбо" value={`x${combatState.combo}/${combatState.maxCombo}`} />
+        <Stat label="Награды" value={`${rewardsLeft}/${DAILY_COMBAT_TRAINING_REWARD_LIMIT}`} />
       </div>
 
       <div
