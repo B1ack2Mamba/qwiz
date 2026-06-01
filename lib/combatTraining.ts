@@ -916,6 +916,22 @@ function createWaveEnemies(profile: GameProfile, heroPower: number, wave: number
     enemies.push(createEnemy("drone-bulwark", "Щитовой узел", 900, 515, 96 + enemyBonus, 31, 0.04 + speedBonus, 14 + damageBonus, "shock"));
   }
 
+  if (wave % 5 === 0) {
+    enemies.push(
+      createEnemy(
+        `drone-captain-${wave}`,
+        "Сигнальный командир",
+        930,
+        280,
+        126 + enemyBonus + wave * 4,
+        34,
+        0.038 + speedBonus * 0.6,
+        16 + damageBonus,
+        "blast",
+      ),
+    );
+  }
+
   return enemies;
 }
 
