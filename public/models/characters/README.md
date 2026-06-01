@@ -59,6 +59,12 @@ Preferred clip names:
 ```text
 idle
 preview_idle
+preview_walk
+preview_attack
+attack_primary
+attack_finisher
+combat_idle
+ready
 stance
 stage_0
 stage_1
@@ -67,7 +73,7 @@ stage_3
 stage_4
 ```
 
-The app plays the first idle-like clip it finds, then optionally blends a stage-specific clip for the current weapon tier.
+The app plays the first idle-like clip it finds, then blends a selected-state combat clip or unselected walk/scout clip when present. It also blends a stage-specific clip for the current weapon tier.
 
 ## Weapon Stages
 

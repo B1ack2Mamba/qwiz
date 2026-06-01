@@ -298,7 +298,7 @@ async function loadGlbCharacter(
         root.add(model);
 
         resolve({
-          controller: createGlbAnimationController(model, gltf.animations, tier),
+          controller: createGlbAnimationController(model, gltf.animations, selected, tier),
           root,
         });
       },
@@ -372,17 +372,37 @@ function normalizeGlbModel(model: THREE.Object3D, targetHeight: number) {
   model.position.z -= center.z;
 }
 
-function createGlbAnimationController(model: THREE.Object3D, clips: THREE.AnimationClip[], tier: number): CharacterAnimationController {
+function createGlbAnimationController(
+  model: THREE.Object3D,
+  clips: THREE.AnimationClip[],
+  selected: boolean,
+  tier: number,
+): CharacterAnimationController {
   const mixer = new THREE.AnimationMixer(model);
   const idleClip = findAnimationClip(clips, ["preview_idle", "idle", "stance", "breath", "loop"]) || clips[0];
+  const motionClip = selected
+    ? findAnimationClip(clips, ["preview_attack", "attack_primary", "attack_finisher", "combat_idle", "ready"])
+    : findAnimationClip(clips, ["preview_walk", "walk", "scout", "patrol"]);
   const stageClip = findAnimationClip(clips, [`stage_${tier}`, `tier_${tier}`, `weapon_${tier}`, `fx_${tier}`]);
 
   if (idleClip) {
     mixer.clipAction(idleClip).setLoop(THREE.LoopRepeat, Infinity).setEffectiveWeight(1).play();
   }
 
+  if (motionClip && motionClip !== idleClip) {
+    mixer
+      .clipAction(motionClip)
+      .setLoop(THREE.LoopRepeat, Infinity)
+      .setEffectiveWeight(selected ? 0.58 : 0.34)
+      .play();
+  }
+
   if (stageClip && stageClip !== idleClip) {
-    mixer.clipAction(stageClip).setLoop(THREE.LoopRepeat, Infinity).setEffectiveWeight(0.74).play();
+    mixer
+      .clipAction(stageClip)
+      .setLoop(THREE.LoopRepeat, Infinity)
+      .setEffectiveWeight(Math.min(0.82, 0.46 + tier * 0.08))
+      .play();
   }
 
   return {
