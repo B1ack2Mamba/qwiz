@@ -226,6 +226,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const hasPrecisionCounter = combatState.timeMs < combatState.player.precisionUntil;
   const isPlayerProtected = combatState.timeMs < combatState.player.invulnerableUntil;
   const isCriticalHealth = combatState.status === "fighting" && combatState.player.hp / combatState.player.maxHp <= 0.35;
+  const isCriticalBase = combatState.status === "fighting" && combatState.defenseHp / combatState.defenseMaxHp <= 0.4;
   const isLowStamina = combatState.status === "fighting" && combatState.player.stamina < combatState.player.dodgeCost;
   const rankSummary = getCombatTrainingRank(combatState);
   const rankGoal = getNextRankGoal(rankSummary.score);
@@ -276,7 +277,9 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
 
       <div
         aria-label="Боевая арена"
-        className={`${styles.arena} ${isCriticalHealth ? styles.isCriticalHealth : ""} ${isLowStamina ? styles.isLowStamina : ""}`}
+        className={`${styles.arena} ${isCriticalHealth ? styles.isCriticalHealth : ""} ${isCriticalBase ? styles.isCriticalBase : ""} ${
+          isLowStamina ? styles.isLowStamina : ""
+        }`}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={aimAndAttack}
         ref={arenaRef}
@@ -615,8 +618,16 @@ function getNextRankGoal(score: number) {
 }
 
 function getCombatRankAdvice(state: CombatState) {
+  if (state.status === "defeat" && state.defenseHp <= 0) {
+    return "Совет: не подпускай врагов к базе, прочность защитного контура теперь влияет на исход и ранг.";
+  }
+
   if (state.status === "defeat") {
     return "Совет: переживи волну до конца, победа дает главный прирост ранга.";
+  }
+
+  if (state.defenseHp / state.defenseMaxHp < 0.65) {
+    return "Совет: перехватывай цели раньше, целая база добавляет очки ранга и снижает риск следующей волны.";
   }
 
   if (state.player.hp / state.player.maxHp < 0.65) {

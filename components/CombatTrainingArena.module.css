@@ -178,6 +178,23 @@
   animation: healthCriticalPulse 620ms ease-in-out infinite alternate;
 }
 
+.isCriticalBase .defenseWall {
+  border-color: rgba(255, 196, 87, 0.78);
+  background: linear-gradient(180deg, rgba(255, 196, 87, 0.14), rgba(244, 139, 151, 0.42), rgba(255, 196, 87, 0.12));
+  box-shadow:
+    0 0 0 7px rgba(255, 196, 87, 0.14),
+    0 0 22px rgba(244, 139, 151, 0.32),
+    0 16px 28px rgba(0, 0, 0, 0.24);
+  animation: defenseCriticalPulse 680ms ease-in-out infinite alternate;
+}
+
+.isCriticalBase .defenseWall::before {
+  background: linear-gradient(180deg, #fff2d4, #ffc457 56%, #f48b97);
+  box-shadow:
+    0 0 20px rgba(255, 196, 87, 0.78),
+    inset 0 -8px 12px rgba(180, 35, 57, 0.24);
+}
+
 .isLowStamina .staminaTrack {
   position: relative;
   border-color: rgba(255, 196, 87, 0.66);
@@ -1881,6 +1898,18 @@
 
   to {
     filter: saturate(1.18) brightness(1.14);
+  }
+}
+
+@keyframes defenseCriticalPulse {
+  from {
+    filter: saturate(1) brightness(1);
+    transform: translateY(-50%) scaleX(1);
+  }
+
+  to {
+    filter: saturate(1.14) brightness(1.1);
+    transform: translateY(-50%) scaleX(1.04);
   }
 }
 
