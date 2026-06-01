@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "apply:supabase": "node scripts/apply-supabase-migration.mjs",
     "check:supabase": "node scripts/check-supabase.mjs",
-    "seed:supabase": "node scripts/seed-supabase.mjs"
+    "seed:supabase": "node scripts/seed-supabase.mjs",
+    "validate:characters": "node scripts/validate-character-glb.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

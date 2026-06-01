@@ -4,6 +4,7 @@ import {
   WeaponPreview3D,
   enhancementWeaponNames,
   getWeaponStageLabel,
+  hasRiggedProfessionAvatar3D,
   professionWeaponEnhancement,
 } from "../components/ProfessionAvatar3D";
 import { CombatTrainingArena } from "../components/CombatTrainingArena";
@@ -793,14 +794,14 @@ export default function HomePage() {
               aria-label="Текущий герой"
             >
               <div className="hero-loadout-scene">
-                {hasCharacterSprite(profile.professionId) ? (
+                {hasRiggedProfessionAvatar3D(profile.professionId) || !hasCharacterSprite(profile.professionId) ? (
+                  <ProfessionAvatar3D professionId={profile.professionId} selected weaponLevel={activeWeaponLevel} />
+                ) : (
                   <CharacterSpritePreview
                     professionId={profile.professionId}
                     selected
                     weaponLevel={activeWeaponLevel}
                   />
-                ) : (
-                  <ProfessionAvatar3D professionId={profile.professionId} selected weaponLevel={activeWeaponLevel} />
                 )}
                 <span className="hero-loadout-crest" aria-hidden="true">
                   {profession.crest}
@@ -860,14 +861,14 @@ export default function HomePage() {
                     onClick={() => runProfessionChange(item.id)}
                     type="button"
                   >
-                    {hasCharacterSprite(item.id) ? (
-                      <CharacterSpritePreview
+                    {hasRiggedProfessionAvatar3D(item.id) || !hasCharacterSprite(item.id) ? (
+                      <ProfessionAvatar3D
                         professionId={item.id}
                         selected={profile.professionId === item.id}
                         weaponLevel={weaponLevel}
                       />
                     ) : (
-                      <ProfessionAvatar3D
+                      <CharacterSpritePreview
                         professionId={item.id}
                         selected={profile.professionId === item.id}
                         weaponLevel={weaponLevel}

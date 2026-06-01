@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { EnhancementId, ProfessionId } from "../lib/companyGame";
 
 type ToolId = "blade" | "pickaxe" | "shield" | "hammer" | "staff" | "banner";
@@ -24,6 +25,15 @@ type CharacterStyle = {
   tool: ToolId;
 };
 
+type CharacterModelConfig = {
+  height: number;
+  src: string;
+};
+
+type CharacterModelManifest = {
+  characters?: Partial<Record<ProfessionId, string | true>>;
+};
+
 export const professionWeaponEnhancement: Record<ProfessionId, EnhancementId> = {
   pathfinder: "route",
   miner: "workbench",
@@ -32,6 +42,10 @@ export const professionWeaponEnhancement: Record<ProfessionId, EnhancementId> = 
   enchanter: "spark",
   tactician: "banner",
 };
+
+export function hasRiggedProfessionAvatar3D(professionId: ProfessionId) {
+  return professionId === "pathfinder" || professionId === "warden";
+}
 
 export const enhancementWeaponNames: Record<EnhancementId, string> = {
   strike: "Клинок цели",
@@ -62,6 +76,13 @@ const enhancementStyle: Record<EnhancementId, CharacterStyle> = {
   banner: professionStyle.tactician,
 };
 
+const characterModelConfig: Partial<Record<ProfessionId, CharacterModelConfig>> = {
+  pathfinder: { height: 2.42, src: "/models/characters/pathfinder/character.glb" },
+  warden: { height: 2.42, src: "/models/characters/warden/character.glb" },
+};
+
+const characterModelManifestSrc = "/models/characters/manifest.json";
+
 export function getWeaponStageLabel(level: number) {
   return visualStageLabels[getVisualTier(level)];
 }
@@ -90,31 +111,68 @@ export function ProfessionAvatar3D({ professionId, selected = false, weaponLevel
     scene.add(root);
 
     addLights(scene, style, selected, tier);
-    createCharacter(root, style, selected, tier);
+
+    let fallbackRoot: THREE.Group | null = new THREE.Group();
+    root.add(fallbackRoot);
+    let characterAnimation: CharacterAnimationController | null = createCharacter(fallbackRoot, professionId, style, selected, tier);
+    let disposed = false;
+
+    loadGlbCharacter(professionId, style, selected, tier).then((loadedCharacter) => {
+      if (!loadedCharacter) {
+        return;
+      }
+
+      if (disposed) {
+        disposeObject3D(loadedCharacter.root);
+        return;
+      }
+
+      if (fallbackRoot) {
+        root.remove(fallbackRoot);
+        disposeObject3D(fallbackRoot);
+        fallbackRoot = null;
+      }
+
+      root.add(loadedCharacter.root);
+      characterAnimation = loadedCharacter.controller;
+    });
 
     const resize = () => resizeRenderer(canvas, renderer, camera);
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
 
-    let frame = 0;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let elapsed = 0;
+    let previousTime = performance.now();
     let animationId = 0;
 
     const animate = () => {
-      frame += 0.016;
-      root.rotation.y = -0.18 + Math.sin(frame * 0.75) * 0.16;
-      root.position.y = Math.sin(frame * 1.35) * 0.035;
+      const time = performance.now();
+      const delta = Math.min((time - previousTime) / 1000, 0.04);
+      previousTime = time;
+      elapsed += delta;
+
+      if (!prefersReducedMotion) {
+        characterAnimation?.update(delta, elapsed);
+        root.rotation.y = -0.18 + Math.sin(elapsed * 0.75) * 0.16;
+        root.position.y = Math.sin(elapsed * 1.35) * 0.035;
+      }
+
       renderer.render(scene, camera);
       animationId = window.requestAnimationFrame(animate);
     };
 
     animate();
 
-    return () => cleanupScene(animationId, observer, renderer, scene);
+    return () => {
+      disposed = true;
+      cleanupScene(animationId, observer, renderer, scene);
+    };
   }, [professionId, selected, weaponLevel]);
 
   return (
-    <span className="profession-avatar-3d" aria-hidden="true">
+    <span className={`profession-avatar-3d is-${professionId}${selected ? " is-selected" : ""}`} aria-hidden="true">
       <canvas ref={canvasRef} />
     </span>
   );
@@ -179,7 +237,7 @@ function createRenderer(canvas: HTMLCanvasElement) {
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   return renderer;
 }
@@ -211,15 +269,192 @@ function addLights(scene: THREE.Scene, style: CharacterStyle, selected: boolean,
   scene.add(rimLight);
 }
 
-function createCharacter(root: THREE.Group, style: CharacterStyle, selected: boolean, tier: number) {
+let characterModelManifest: Promise<CharacterModelManifest> | null = null;
+
+async function loadGlbCharacter(
+  professionId: ProfessionId,
+  style: CharacterStyle,
+  selected: boolean,
+  tier: number,
+): Promise<{ controller: CharacterAnimationController; root: THREE.Group } | null> {
+  const config = await getAvailableGlbConfig(professionId);
+
+  if (!config) {
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    new GLTFLoader().load(
+      config.src,
+      (gltf) => {
+        const root = new THREE.Group();
+        const materials = createMaterials(style, selected, tier);
+        addGlowBase(root, style, selected, tier, materials.glow);
+
+        const model = gltf.scene;
+        model.name = `${professionId}_glb_model`;
+        configureGlbScene(model, tier);
+        normalizeGlbModel(model, config.height);
+        root.add(model);
+
+        resolve({
+          controller: createGlbAnimationController(model, gltf.animations, tier),
+          root,
+        });
+      },
+      undefined,
+      () => resolve(null),
+    );
+  });
+}
+
+async function getAvailableGlbConfig(professionId: ProfessionId) {
+  const config = characterModelConfig[professionId];
+
+  if (!config) {
+    return null;
+  }
+
+  const manifest = await loadCharacterModelManifest();
+  const manifestEntry = manifest.characters?.[professionId];
+
+  if (!manifestEntry) {
+    return null;
+  }
+
+  return {
+    ...config,
+    src: manifestEntry === true ? config.src : manifestEntry,
+  };
+}
+
+function loadCharacterModelManifest() {
+  if (!characterModelManifest) {
+    characterModelManifest = fetch(characterModelManifestSrc)
+      .then((response) => (response.ok ? response.json() : {}))
+      .catch(() => ({}));
+  }
+
+  return characterModelManifest;
+}
+
+function configureGlbScene(model: THREE.Object3D, tier: number) {
+  model.traverse((object) => {
+    const stageIndex = getStageIndexFromName(object.name);
+
+    if (stageIndex !== null) {
+      object.visible = stageIndex === tier;
+    }
+
+    if (object instanceof THREE.Mesh) {
+      object.castShadow = true;
+      object.receiveShadow = true;
+    }
+  });
+}
+
+function normalizeGlbModel(model: THREE.Object3D, targetHeight: number) {
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+
+  if (size.y <= 0) {
+    return;
+  }
+
+  model.scale.multiplyScalar(targetHeight / size.y);
+  model.updateMatrixWorld(true);
+
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.y += -0.72 - scaledBox.min.y;
+  model.position.z -= center.z;
+}
+
+function createGlbAnimationController(model: THREE.Object3D, clips: THREE.AnimationClip[], tier: number): CharacterAnimationController {
+  const mixer = new THREE.AnimationMixer(model);
+  const idleClip = findAnimationClip(clips, ["preview_idle", "idle", "stance", "breath", "loop"]) || clips[0];
+  const stageClip = findAnimationClip(clips, [`stage_${tier}`, `tier_${tier}`, `weapon_${tier}`, `fx_${tier}`]);
+
+  if (idleClip) {
+    mixer.clipAction(idleClip).setLoop(THREE.LoopRepeat, Infinity).setEffectiveWeight(1).play();
+  }
+
+  if (stageClip && stageClip !== idleClip) {
+    mixer.clipAction(stageClip).setLoop(THREE.LoopRepeat, Infinity).setEffectiveWeight(0.74).play();
+  }
+
+  return {
+    update(delta) {
+      mixer.update(delta);
+    },
+  };
+}
+
+function findAnimationClip(clips: THREE.AnimationClip[], names: string[]) {
+  return clips.find((clip) => {
+    const clipName = normalizeAssetName(clip.name);
+    return names.some((name) => clipName.includes(normalizeAssetName(name)));
+  });
+}
+
+function getStageIndexFromName(name: string) {
+  const match = normalizeAssetName(name).match(/(?:weapon_)?(?:stage|tier)_?([0-4])(?:_|$)/);
+  return match ? Number(match[1]) : null;
+}
+
+function normalizeAssetName(name: string) {
+  return name.toLowerCase().replace(/[\s.-]+/g, "_");
+}
+
+type CharacterAnimationController = {
+  update: (delta: number, elapsed: number) => void;
+};
+
+type RiggedHunterBoneName =
+  | "hunter_model"
+  | "hunter_pelvis"
+  | "hunter_spine"
+  | "hunter_chest"
+  | "hunter_head"
+  | "hunter_cloak"
+  | "hunter_left_upper_arm"
+  | "hunter_left_lower_arm"
+  | "hunter_left_hand"
+  | "hunter_right_upper_arm"
+  | "hunter_right_lower_arm"
+  | "hunter_right_hand"
+  | "hunter_left_upper_leg"
+  | "hunter_left_lower_leg"
+  | "hunter_right_upper_leg"
+  | "hunter_right_lower_leg"
+  | "hunter_right_blade"
+  | "hunter_left_blade";
+
+type RiggedHunterBones = Record<RiggedHunterBoneName, THREE.Group>;
+
+function createCharacter(
+  root: THREE.Group,
+  professionId: ProfessionId,
+  style: CharacterStyle,
+  selected: boolean,
+  tier: number,
+): CharacterAnimationController | null {
   const materials = createMaterials(style, selected, tier);
 
   addGlowBase(root, style, selected, tier, materials.glow);
+
+  if (hasRiggedProfessionAvatar3D(professionId)) {
+    return createRiggedHunterCharacter(root, style, materials, selected, tier, professionId);
+  }
+
   addBody(root, materials);
   addHead(root, materials);
   addArms(root, style.tool, materials, tier);
   addLegs(root, materials);
   addWeaponModel(root, style.tool, materials, style, tier, false);
+  return null;
 }
 
 function createMaterials(style: CharacterStyle, selected: boolean, tier: number) {
@@ -252,6 +487,485 @@ function createMaterials(style: CharacterStyle, selected: boolean, tier: number)
     eye: new THREE.MeshBasicMaterial({ color: 0x17201f }),
     badge: new THREE.MeshBasicMaterial({ map: createBadgeTexture(), transparent: true }),
   };
+}
+
+function createRiggedHunterCharacter(
+  root: THREE.Group,
+  style: CharacterStyle,
+  materials: ReturnType<typeof createMaterials>,
+  selected: boolean,
+  tier: number,
+  professionId: ProfessionId,
+): CharacterAnimationController {
+  const bones = createHunterRig(root, style, materials, tier, professionId);
+  const mixer = new THREE.AnimationMixer(bones.hunter_model);
+  const idleAction = mixer.clipAction(createHunterIdleClip());
+  const motionAction = mixer.clipAction(selected ? createHunterStrikeClip() : createHunterScoutClip());
+  const gearAction = mixer.clipAction(createHunterGearClip(tier));
+
+  idleAction.setLoop(THREE.LoopRepeat, Infinity).setEffectiveWeight(1).play();
+  motionAction
+    .setLoop(THREE.LoopRepeat, Infinity)
+    .setEffectiveWeight(selected ? 0.78 : 0.42)
+    .play();
+  gearAction
+    .setLoop(THREE.LoopRepeat, Infinity)
+    .setEffectiveWeight(Math.min(1, 0.38 + tier * 0.14))
+    .play();
+
+  mixer.update(professionId === "warden" ? 0.32 : 0.14);
+
+  return {
+    update(delta, elapsed) {
+      mixer.update(delta);
+      bones.hunter_model.rotation.y = (professionId === "warden" ? 0.08 : -0.05) + Math.sin(elapsed * 0.55) * 0.035;
+    },
+  };
+}
+
+function createHunterRig(
+  root: THREE.Group,
+  style: CharacterStyle,
+  materials: ReturnType<typeof createMaterials>,
+  tier: number,
+  professionId: ProfessionId,
+) {
+  const bones = {} as RiggedHunterBones;
+  const model = new THREE.Group();
+  model.name = "hunter_model";
+  model.position.set(0, 0.02, 0);
+  model.scale.setScalar(professionId === "warden" ? 1.03 : 0.98);
+  root.add(model);
+  bones.hunter_model = model;
+
+  const rig = new THREE.Group();
+  rig.position.set(0, -0.44, 0);
+  model.add(rig);
+
+  bones.hunter_pelvis = addHunterBone(rig, "hunter_pelvis", [0, 0.48, 0]);
+  bones.hunter_spine = addHunterBone(bones.hunter_pelvis, "hunter_spine", [0, 0.32, 0.01]);
+  bones.hunter_chest = addHunterBone(bones.hunter_spine, "hunter_chest", [0, 0.42, 0.01]);
+  bones.hunter_head = addHunterBone(bones.hunter_chest, "hunter_head", [0, 0.54, 0.05]);
+  bones.hunter_cloak = addHunterBone(bones.hunter_chest, "hunter_cloak", [0, 0.12, -0.25]);
+
+  bones.hunter_left_upper_arm = addHunterBone(bones.hunter_chest, "hunter_left_upper_arm", [-0.46, 0.22, 0.02]);
+  bones.hunter_left_lower_arm = addHunterBone(bones.hunter_left_upper_arm, "hunter_left_lower_arm", [0, -0.42, 0.01]);
+  bones.hunter_left_hand = addHunterBone(bones.hunter_left_lower_arm, "hunter_left_hand", [0, -0.34, 0.04]);
+  bones.hunter_right_upper_arm = addHunterBone(bones.hunter_chest, "hunter_right_upper_arm", [0.46, 0.22, 0.02]);
+  bones.hunter_right_lower_arm = addHunterBone(bones.hunter_right_upper_arm, "hunter_right_lower_arm", [0, -0.42, 0.01]);
+  bones.hunter_right_hand = addHunterBone(bones.hunter_right_lower_arm, "hunter_right_hand", [0, -0.34, 0.04]);
+
+  bones.hunter_left_upper_leg = addHunterBone(bones.hunter_pelvis, "hunter_left_upper_leg", [-0.2, -0.08, 0.01]);
+  bones.hunter_left_lower_leg = addHunterBone(bones.hunter_left_upper_leg, "hunter_left_lower_leg", [0, -0.34, 0]);
+  bones.hunter_right_upper_leg = addHunterBone(bones.hunter_pelvis, "hunter_right_upper_leg", [0.2, -0.08, 0.01]);
+  bones.hunter_right_lower_leg = addHunterBone(bones.hunter_right_upper_leg, "hunter_right_lower_leg", [0, -0.34, 0]);
+
+  bones.hunter_left_upper_arm.rotation.z = 0.16;
+  bones.hunter_left_lower_arm.rotation.z = 0.08;
+  bones.hunter_right_upper_arm.rotation.z = -0.22;
+  bones.hunter_right_lower_arm.rotation.z = -0.1;
+
+  addHunterTorso(bones, style, materials, professionId);
+  addHunterHead(bones, style, materials, professionId);
+  addHunterArm(bones.hunter_left_upper_arm, bones.hunter_left_lower_arm, bones.hunter_left_hand, materials, "left");
+  addHunterArm(bones.hunter_right_upper_arm, bones.hunter_right_lower_arm, bones.hunter_right_hand, materials, "right");
+  addHunterLeg(bones.hunter_left_upper_leg, bones.hunter_left_lower_leg, materials, -1);
+  addHunterLeg(bones.hunter_right_upper_leg, bones.hunter_right_lower_leg, materials, 1);
+
+  bones.hunter_right_blade = addHunterBladeToHand(bones.hunter_right_hand, materials, style, tier, "right", true);
+  bones.hunter_left_blade = addHunterBladeToHand(bones.hunter_left_hand, materials, style, tier, "left", tier >= 2);
+
+  return bones;
+}
+
+function addHunterBone(parent: THREE.Group, name: RiggedHunterBoneName, position: [number, number, number]) {
+  const bone = new THREE.Group();
+  bone.name = name;
+  bone.position.set(...position);
+  parent.add(bone);
+  return bone;
+}
+
+function addHunterTorso(
+  bones: RiggedHunterBones,
+  style: CharacterStyle,
+  materials: ReturnType<typeof createMaterials>,
+  professionId: ProfessionId,
+) {
+  const cloakMaterial = new THREE.MeshStandardMaterial({
+    color: professionId === "warden" ? 0x402326 : 0x0f3b35,
+    metalness: 0.08,
+    roughness: 0.72,
+  });
+  const strapMaterial = new THREE.MeshStandardMaterial({ color: 0x243331, metalness: 0.16, roughness: 0.55 });
+  const trimMaterial = new THREE.MeshStandardMaterial({
+    color: style.accent,
+    emissive: style.accent,
+    emissiveIntensity: 0.08,
+    metalness: 0.18,
+    roughness: 0.5,
+  });
+
+  addMesh(bones.hunter_pelvis, new THREE.BoxGeometry(0.66, 0.2, 0.32), materials.navyDark, [0, 0, 0.02], [0, 0, 0]);
+  addMesh(bones.hunter_pelvis, new THREE.BoxGeometry(0.78, 0.08, 0.36), materials.accentDark, [0, 0.09, 0.04], [0, 0, 0]);
+  addMesh(bones.hunter_chest, new THREE.CapsuleGeometry(0.34, 0.58, 6, 14), materials.navy, [0, -0.15, 0], [0.04, 0, 0]);
+  addMesh(bones.hunter_chest, new THREE.BoxGeometry(0.5, 0.58, 0.08), materials.shirt, [0, -0.17, 0.34], [0, 0, 0]);
+  addMesh(bones.hunter_chest, new THREE.BoxGeometry(0.14, 0.54, 0.09), materials.accent, [0, -0.19, 0.39], [0, 0, 0]);
+  addMesh(bones.hunter_chest, new THREE.BoxGeometry(0.84, 0.11, 0.16), materials.accentDark, [0, 0.15, 0.08], [0, 0, 0]);
+  addMesh(bones.hunter_chest, new THREE.BoxGeometry(0.1, 0.86, 0.08), strapMaterial, [-0.22, -0.16, 0.42], [0, 0, -0.38]);
+  addMesh(bones.hunter_chest, new THREE.BoxGeometry(0.16, 0.16, 0.08), trimMaterial, [0.22, -0.28, 0.43], [0, 0, 0]);
+
+  const badge = addMesh(bones.hunter_chest, new THREE.PlaneGeometry(0.42, 0.15), materials.badge, [0.1, -0.08, 0.44], [0, 0, 0]);
+  badge.renderOrder = 4;
+
+  addMesh(bones.hunter_cloak, new THREE.BoxGeometry(0.78, 0.86, 0.045), cloakMaterial, [0, -0.38, 0], [0.18, 0, 0], [1, 1, 1]);
+  addMesh(bones.hunter_cloak, new THREE.BoxGeometry(0.58, 0.08, 0.05), materials.accent, [0, 0.08, 0.02], [0, 0, 0]);
+  addMesh(bones.hunter_cloak, new THREE.BoxGeometry(0.18, 0.62, 0.045), materials.glow, [0.32, -0.4, 0.025], [0.16, 0, -0.05]);
+}
+
+function addHunterHead(
+  bones: RiggedHunterBones,
+  style: CharacterStyle,
+  materials: ReturnType<typeof createMaterials>,
+  professionId: ProfessionId,
+) {
+  const hoodMaterial = new THREE.MeshStandardMaterial({
+    color: professionId === "warden" ? 0x2a1d1e : 0x123d38,
+    metalness: 0.1,
+    roughness: 0.68,
+  });
+  const visorMaterial = new THREE.MeshStandardMaterial({
+    color: style.accentDark,
+    emissive: style.accent,
+    emissiveIntensity: 0.1,
+    metalness: 0.24,
+    roughness: 0.42,
+  });
+
+  addMesh(bones.hunter_head, new THREE.SphereGeometry(0.29, 24, 16), materials.skin, [0, 0.02, 0.02], [0, 0, 0]);
+  addMesh(bones.hunter_head, new THREE.SphereGeometry(0.315, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.56), hoodMaterial, [0, 0.11, 0], [0.12, 0, 0]);
+  addMesh(bones.hunter_head, new THREE.BoxGeometry(0.46, 0.06, 0.12), visorMaterial, [0, 0.16, 0.19], [0, 0, 0]);
+  addMesh(bones.hunter_head, new THREE.SphereGeometry(0.028, 10, 8), materials.eye, [-0.1, 0.01, 0.28], [0, 0, 0]);
+  addMesh(bones.hunter_head, new THREE.SphereGeometry(0.028, 10, 8), materials.eye, [0.1, 0.01, 0.28], [0, 0, 0]);
+  addMesh(bones.hunter_head, new THREE.BoxGeometry(0.12, 0.024, 0.024), materials.eye, [0, -0.08, 0.3], [0, 0, 0]);
+  addMesh(bones.hunter_head, new THREE.ConeGeometry(0.16, 0.22, 5), hoodMaterial, [0, -0.14, -0.12], [-0.68, 0, Math.PI]);
+}
+
+function addHunterArm(
+  upperArm: THREE.Group,
+  lowerArm: THREE.Group,
+  hand: THREE.Group,
+  materials: ReturnType<typeof createMaterials>,
+  side: "left" | "right",
+) {
+  const sideSign = side === "left" ? -1 : 1;
+  addMesh(upperArm, new THREE.SphereGeometry(0.15, 12, 8), materials.accentDark, [0, 0.03, 0], [0, 0, 0]);
+  addMesh(upperArm, new THREE.CapsuleGeometry(0.078, 0.36, 5, 10), materials.navy, [0, -0.2, 0.02], [0.04, 0, sideSign * 0.02]);
+  addMesh(lowerArm, new THREE.CapsuleGeometry(0.068, 0.3, 5, 10), materials.navyDark, [0, -0.17, 0.03], [0.04, 0, 0]);
+  addMesh(lowerArm, new THREE.CylinderGeometry(0.075, 0.075, 0.08, 10), materials.accent, [0, -0.32, 0.05], [0, 0, 0]);
+  addMesh(hand, new THREE.SphereGeometry(0.095, 14, 10), materials.skin, [0, -0.03, 0.04], [0, 0, 0]);
+}
+
+function addHunterLeg(
+  upperLeg: THREE.Group,
+  lowerLeg: THREE.Group,
+  materials: ReturnType<typeof createMaterials>,
+  sideSign: -1 | 1,
+) {
+  addMesh(upperLeg, new THREE.CapsuleGeometry(0.095, 0.32, 5, 9), materials.navyDark, [0, -0.17, 0], [0.03, 0, sideSign * 0.03]);
+  addMesh(lowerLeg, new THREE.CapsuleGeometry(0.085, 0.32, 5, 9), materials.navyDark, [0, -0.17, 0.02], [0.02, 0, 0]);
+  addMesh(lowerLeg, new THREE.BoxGeometry(0.28, 0.11, 0.38), materials.boot, [0.025 * sideSign, -0.37, 0.12], [0, 0, 0]);
+}
+
+function addHunterBladeToHand(
+  hand: THREE.Group,
+  materials: ReturnType<typeof createMaterials>,
+  style: CharacterStyle,
+  tier: number,
+  side: "left" | "right",
+  visible: boolean,
+) {
+  const blade = new THREE.Group();
+  blade.name = side === "left" ? "hunter_left_blade" : "hunter_right_blade";
+  blade.position.set(side === "left" ? -0.02 : 0.02, -0.1, 0.14);
+  blade.rotation.set(0.18, 0, side === "left" ? 0.18 : -0.18);
+  blade.scale.setScalar(visible ? 1 : 0.001);
+  hand.add(blade);
+
+  const bladeLength = (side === "right" ? 0.48 : 0.38) + tier * 0.085;
+  const guardWidth = (side === "right" ? 0.28 : 0.22) + tier * 0.03;
+  const bladeGlow = new THREE.MeshStandardMaterial({
+    color: style.glow,
+    transparent: true,
+    opacity: Math.min(0.68, 0.28 + tier * 0.08),
+    emissive: style.glow,
+    emissiveIntensity: 0.45 + tier * 0.16,
+    metalness: 0.1,
+    roughness: 0.3,
+  });
+
+  addMesh(blade, new THREE.CapsuleGeometry(0.03, 0.28, 4, 8), materials.dark, [0, -0.1, 0], [0, 0, 0]);
+  addMesh(blade, new THREE.BoxGeometry(guardWidth, 0.055, 0.07), materials.accent, [0, 0.06, 0.01], [0, 0, 0]);
+  addMesh(blade, new THREE.ConeGeometry(0.105 + tier * 0.012, bladeLength, 5), materials.metal, [0, 0.28 + tier * 0.04, 0.01], [0, 0, Math.PI]);
+
+  if (tier >= 1) {
+    addMesh(blade, new THREE.TorusGeometry(0.14 + tier * 0.018, 0.01, 8, 28), bladeGlow, [0, 0.25, 0.02], [0.7, 0.12, 0]);
+  }
+
+  if (tier >= 3) {
+    addMesh(blade, new THREE.ConeGeometry(0.042, 0.26, 4), bladeGlow, [-0.12, 0.2, 0.02], [0, 0, Math.PI]);
+    addMesh(blade, new THREE.ConeGeometry(0.042, 0.26, 4), bladeGlow, [0.12, 0.2, 0.02], [0, 0, Math.PI]);
+  }
+
+  return blade;
+}
+
+function createHunterIdleClip() {
+  const times = [0, 0.6, 1.2, 1.8, 2.4];
+
+  return new THREE.AnimationClip("hunter-idle", 2.4, [
+    vectorTrack("hunter_pelvis.position", times, [
+      [0, 0.48, 0],
+      [0, 0.505, 0.006],
+      [0, 0.49, 0],
+      [0, 0.5, -0.004],
+      [0, 0.48, 0],
+    ]),
+    quaternionTrack("hunter_chest.quaternion", times, [
+      [0.02, 0, 0],
+      [0.035, 0.018, 0.014],
+      [0.015, 0, -0.008],
+      [0.03, -0.014, 0.01],
+      [0.02, 0, 0],
+    ]),
+    quaternionTrack("hunter_head.quaternion", times, [
+      [0, 0, 0],
+      [0.035, -0.045, 0.012],
+      [0.015, 0.02, -0.006],
+      [0.028, 0.042, 0.01],
+      [0, 0, 0],
+    ]),
+    quaternionTrack("hunter_left_upper_arm.quaternion", times, [
+      [0, 0, 0.16],
+      [0.035, 0, 0.21],
+      [0, 0, 0.17],
+      [0.02, 0, 0.2],
+      [0, 0, 0.16],
+    ]),
+    quaternionTrack("hunter_right_upper_arm.quaternion", times, [
+      [0, 0, -0.22],
+      [0.03, 0.01, -0.28],
+      [0, 0, -0.23],
+      [0.02, -0.01, -0.25],
+      [0, 0, -0.22],
+    ]),
+    quaternionTrack("hunter_cloak.quaternion", times, [
+      [0.04, 0, 0],
+      [0.12, 0.02, -0.02],
+      [0.06, 0, 0.01],
+      [0.1, -0.02, 0.02],
+      [0.04, 0, 0],
+    ]),
+  ]);
+}
+
+function createHunterScoutClip() {
+  const times = [0, 0.32, 0.64, 0.96, 1.28];
+
+  return new THREE.AnimationClip("hunter-scout-step", 1.28, [
+    vectorTrack("hunter_pelvis.position", times, [
+      [0, 0.48, 0],
+      [0.015, 0.515, 0.012],
+      [0, 0.48, 0],
+      [-0.015, 0.515, -0.012],
+      [0, 0.48, 0],
+    ]),
+    quaternionTrack("hunter_chest.quaternion", times, [
+      [0.03, 0.02, 0],
+      [0.05, 0.05, -0.025],
+      [0.02, -0.01, 0],
+      [0.05, -0.045, 0.025],
+      [0.03, 0.02, 0],
+    ]),
+    quaternionTrack("hunter_left_upper_leg.quaternion", times, [
+      [0.18, 0, 0],
+      [-0.18, 0, -0.035],
+      [0.18, 0, 0],
+      [0.36, 0, 0.035],
+      [0.18, 0, 0],
+    ]),
+    quaternionTrack("hunter_right_upper_leg.quaternion", times, [
+      [-0.18, 0, 0],
+      [0.36, 0, 0.035],
+      [-0.18, 0, 0],
+      [-0.18, 0, -0.035],
+      [-0.18, 0, 0],
+    ]),
+    quaternionTrack("hunter_left_lower_leg.quaternion", times, [
+      [-0.12, 0, 0],
+      [0.24, 0, 0],
+      [-0.12, 0, 0],
+      [0.08, 0, 0],
+      [-0.12, 0, 0],
+    ]),
+    quaternionTrack("hunter_right_lower_leg.quaternion", times, [
+      [0.24, 0, 0],
+      [0.08, 0, 0],
+      [0.24, 0, 0],
+      [-0.12, 0, 0],
+      [0.24, 0, 0],
+    ]),
+    quaternionTrack("hunter_left_upper_arm.quaternion", times, [
+      [-0.12, 0, 0.2],
+      [0.2, 0, 0.18],
+      [-0.12, 0, 0.2],
+      [-0.28, 0, 0.24],
+      [-0.12, 0, 0.2],
+    ]),
+    quaternionTrack("hunter_right_upper_arm.quaternion", times, [
+      [0.22, 0, -0.28],
+      [-0.2, 0, -0.22],
+      [0.22, 0, -0.28],
+      [0.32, 0, -0.3],
+      [0.22, 0, -0.28],
+    ]),
+  ]);
+}
+
+function createHunterStrikeClip() {
+  const times = [0, 0.18, 0.38, 0.62, 0.9, 1.18];
+
+  return new THREE.AnimationClip("hunter-ready-strike", 1.18, [
+    vectorTrack("hunter_pelvis.position", times, [
+      [0, 0.48, 0],
+      [-0.035, 0.5, -0.015],
+      [-0.055, 0.515, -0.02],
+      [0.08, 0.49, 0.025],
+      [0.02, 0.5, 0.006],
+      [0, 0.48, 0],
+    ]),
+    quaternionTrack("hunter_chest.quaternion", times, [
+      [0.03, 0.02, 0],
+      [0.08, -0.34, -0.08],
+      [0.1, -0.42, -0.1],
+      [0.04, 0.38, 0.12],
+      [0.02, 0.1, 0.02],
+      [0.03, 0.02, 0],
+    ]),
+    quaternionTrack("hunter_head.quaternion", times, [
+      [0, 0, 0],
+      [0.08, 0.2, -0.02],
+      [0.1, 0.25, -0.04],
+      [0.04, -0.18, 0.04],
+      [0.02, -0.06, 0.02],
+      [0, 0, 0],
+    ]),
+    quaternionTrack("hunter_right_upper_arm.quaternion", times, [
+      [0.1, 0, -0.24],
+      [-0.92, -0.24, -0.62],
+      [-1.16, -0.34, -0.72],
+      [0.42, 0.18, -1.08],
+      [0.16, 0.06, -0.36],
+      [0.1, 0, -0.24],
+    ]),
+    quaternionTrack("hunter_right_lower_arm.quaternion", times, [
+      [-0.08, 0, -0.1],
+      [-0.48, 0.08, -0.28],
+      [-0.68, 0.1, -0.34],
+      [0.28, -0.12, -0.16],
+      [0.04, 0, -0.12],
+      [-0.08, 0, -0.1],
+    ]),
+    quaternionTrack("hunter_right_hand.quaternion", times, [
+      [0, 0, 0],
+      [0.1, -0.18, -0.1],
+      [0.18, -0.3, -0.16],
+      [-0.08, 0.22, 0.24],
+      [0.02, 0.08, 0.08],
+      [0, 0, 0],
+    ]),
+    quaternionTrack("hunter_left_upper_arm.quaternion", times, [
+      [0, 0, 0.18],
+      [0.28, 0.08, 0.52],
+      [0.36, 0.12, 0.58],
+      [-0.12, -0.04, 0.22],
+      [0.02, 0, 0.2],
+      [0, 0, 0.18],
+    ]),
+    quaternionTrack("hunter_left_lower_arm.quaternion", times, [
+      [0, 0, 0.08],
+      [-0.26, -0.04, 0.3],
+      [-0.34, -0.08, 0.38],
+      [0.12, 0.02, 0.12],
+      [0.04, 0, 0.08],
+      [0, 0, 0.08],
+    ]),
+    quaternionTrack("hunter_left_upper_leg.quaternion", times, [
+      [0.08, 0, 0],
+      [0.32, 0, -0.05],
+      [0.36, 0, -0.05],
+      [-0.16, 0, 0.06],
+      [0.04, 0, 0],
+      [0.08, 0, 0],
+    ]),
+    quaternionTrack("hunter_right_upper_leg.quaternion", times, [
+      [-0.08, 0, 0],
+      [-0.22, 0, 0.05],
+      [-0.24, 0, 0.05],
+      [0.28, 0, -0.06],
+      [0.02, 0, 0],
+      [-0.08, 0, 0],
+    ]),
+    quaternionTrack("hunter_cloak.quaternion", times, [
+      [0.04, 0, 0],
+      [0.16, -0.12, 0.08],
+      [0.2, -0.18, 0.12],
+      [0.08, 0.2, -0.16],
+      [0.06, 0.06, -0.05],
+      [0.04, 0, 0],
+    ]),
+  ]);
+}
+
+function createHunterGearClip(tier: number) {
+  const times = [0, 0.7, 1.4, 2.1];
+  const pulseScale = 1 + tier * 0.035;
+
+  return new THREE.AnimationClip("hunter-gear-pulse", 2.1, [
+    vectorTrack("hunter_right_blade.scale", times, [
+      [1, 1, 1],
+      [pulseScale, 1 + tier * 0.055, pulseScale],
+      [1.015, 1.01, 1.015],
+      [1, 1, 1],
+    ]),
+    quaternionTrack("hunter_right_blade.quaternion", times, [
+      [0.18, 0, -0.18],
+      [0.25, 0.04, -0.22],
+      [0.2, -0.03, -0.16],
+      [0.18, 0, -0.18],
+    ]),
+    quaternionTrack("hunter_left_blade.quaternion", times, [
+      [0.18, 0, 0.18],
+      [0.23, -0.04, 0.23],
+      [0.2, 0.03, 0.16],
+      [0.18, 0, 0.18],
+    ]),
+  ]);
+}
+
+function vectorTrack(name: string, times: number[], vectors: Array<[number, number, number]>) {
+  return new THREE.VectorKeyframeTrack(name, times, vectors.flat());
+}
+
+function quaternionTrack(name: string, times: number[], eulers: Array<[number, number, number]>) {
+  return new THREE.QuaternionKeyframeTrack(
+    name,
+    times,
+    eulers.flatMap(([x, y, z]) => {
+      const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
+      return [quaternion.x, quaternion.y, quaternion.z, quaternion.w];
+    }),
+  );
 }
 
 function addBody(root: THREE.Group, materials: ReturnType<typeof createMaterials>) {
@@ -566,6 +1280,16 @@ function createBadgeTexture() {
   return texture;
 }
 
+function disposeObject3D(root: THREE.Object3D) {
+  const disposedMaterials = new Set<THREE.Material>();
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      object.geometry.dispose();
+      disposeMaterial(object.material, disposedMaterials);
+    }
+  });
+}
+
 function cleanupScene(
   animationId: number,
   observer: ResizeObserver,
@@ -575,14 +1299,7 @@ function cleanupScene(
   window.cancelAnimationFrame(animationId);
   observer.disconnect();
   renderer.dispose();
-
-  const disposedMaterials = new Set<THREE.Material>();
-  scene.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-      object.geometry.dispose();
-      disposeMaterial(object.material, disposedMaterials);
-    }
-  });
+  disposeObject3D(scene);
 }
 
 function disposeMaterial(material: THREE.Material | THREE.Material[], disposedMaterials: Set<THREE.Material>) {
