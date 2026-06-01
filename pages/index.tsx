@@ -26,6 +26,7 @@ import {
   GameProfile,
   ProfessionId,
   TeamDirectiveId,
+  battleReadinessTiers,
   canContributeToBattle,
   canEnterDungeon,
   canForgeEnhancement,
@@ -772,6 +773,7 @@ export default function HomePage() {
               </svg>
               <div className="battle-readiness" style={{ width: `${monthlyReadiness}%` }} />
             </div>
+            <BattleTierRail readiness={monthlyReadiness} />
             {battlePlan && (
               <div className="battle-plan">
                 <div>
@@ -908,6 +910,39 @@ function getCompactWeaponStageLabel(level: number) {
   const compactLabels = ["База", "Заряд", "Редкий", "Эпик", "Пробуждение"];
   const tier = Math.max(0, Math.min(4, Math.floor(level)));
   return compactLabels[tier];
+}
+
+function BattleTierRail({ readiness }: { readiness: number }) {
+  const cappedReadiness = Math.max(0, Math.min(100, Math.round(readiness)));
+  const activeTier =
+    battleReadinessTiers
+      .slice()
+      .reverse()
+      .find((tier) => cappedReadiness >= tier.threshold) || battleReadinessTiers[0];
+
+  return (
+    <div className="battle-tier-rail" aria-label="Этапы готовности битвы">
+      <div className="battle-tier-track" aria-hidden="true">
+        <i style={{ width: `${cappedReadiness}%` }} />
+      </div>
+      <div className="battle-tier-grid">
+        {battleReadinessTiers.map((tier) => {
+          const unlocked = cappedReadiness >= tier.threshold;
+          const current = tier.id === activeTier.id;
+
+          return (
+            <span
+              className={`battle-tier-marker${unlocked ? " is-unlocked" : ""}${current ? " is-current" : ""}`}
+              key={tier.id}
+            >
+              <strong>{tier.name}</strong>
+              <small>{tier.threshold}%</small>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function getProfessionChangeLabel(mode: ReturnType<typeof getProfessionChangeMode>) {
