@@ -2378,6 +2378,28 @@
   font-weight: 800;
 }
 
+.rankBreakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.rankBreakdown span {
+  min-height: 24px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f2f5ef;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rankBreakdown .rankPenalty {
+  background: #fff7f8;
+  color: var(--rose);
+}
+
 .rewardItems {
   display: flex;
   flex-wrap: wrap;

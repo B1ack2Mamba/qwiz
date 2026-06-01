@@ -19,6 +19,7 @@ import {
   createNextCombatTrainingWave,
   faceCombatPoint,
   getCombatTrainingRank,
+  getCombatTrainingRankBreakdown,
   performCombatAttack,
   performCombatAbility,
   performCombatDodge,
@@ -229,6 +230,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
   const rankSummary = getCombatTrainingRank(combatState);
   const rankGoal = getNextRankGoal(rankSummary.score);
   const rankAdvice = getCombatRankAdvice(combatState);
+  const rankBreakdown = getCombatTrainingRankBreakdown(combatState);
   const reward = getCombatTrainingReward(profile, combatState.wave, combatState.defeatedCount, rankSummary.rank);
   const rewardClaimed = claimedWaves.has(combatState.wave);
   const rewardsLeft = Math.max(0, DAILY_COMBAT_TRAINING_REWARD_LIMIT - profile.combatTrainingRewardsClaimed);
@@ -446,6 +448,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                   <span>Получено {combatState.damageTaken}</span>
                 </div>
                 <span className={styles.rankAdvice}>{rankAdvice}</span>
+                <RankBreakdown breakdown={rankBreakdown} />
                 <div className={styles.rewardItems}>
                   {reward.rankBonusPercent > 0 && <span>+{reward.rankBonusPercent}% ранг</span>}
                   <span>+{reward.xp} XP</span>
@@ -481,6 +484,7 @@ export function CombatTrainingArena({ heroPower, onClaimReward, profile }: Comba
                   <span>Получено {combatState.damageTaken}</span>
                 </div>
                 <span className={styles.rankAdvice}>{rankAdvice}</span>
+                <RankBreakdown breakdown={rankBreakdown} />
               </div>
               <button className={styles.nextWaveButton} onClick={resetTraining} type="button">
                 Повторить
@@ -513,6 +517,18 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className={styles.stat}>
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function RankBreakdown({ breakdown }: { breakdown: ReturnType<typeof getCombatTrainingRankBreakdown> }) {
+  return (
+    <div className={styles.rankBreakdown} aria-label="Разбор очков ранга">
+      <span>Зачистка +{breakdown.clearScore}</span>
+      <span>HP +{breakdown.hpScore}</span>
+      <span>Комбо +{breakdown.comboScore}</span>
+      <span>Точность +{breakdown.precisionScore}</span>
+      {breakdown.damagePenalty > 0 && <span className={styles.rankPenalty}>Урон -{breakdown.damagePenalty}</span>}
     </div>
   );
 }

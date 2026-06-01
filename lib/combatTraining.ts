@@ -14,6 +14,15 @@ export type CombatAbilityId = "route-dash" | "ore-breaker" | "blade-fan" | "guar
 export type CombatRank = "S" | "A" | "B" | "C";
 export type EnemyAttackKind = "slash" | "blast" | "rush" | "shock";
 
+export type CombatRankBreakdown = {
+  clearScore: number;
+  hpScore: number;
+  comboScore: number;
+  precisionScore: number;
+  damagePenalty: number;
+  score: number;
+};
+
 export type CombatAbility = {
   id: CombatAbilityId;
   name: string;
@@ -143,12 +152,7 @@ export function createCombatTrainingState(profile: GameProfile, heroPower: numbe
 }
 
 export function getCombatTrainingRank(state: CombatState): { rank: CombatRank; score: number } {
-  const clearScore = state.status === "victory" ? 35 : state.status === "defeat" ? 0 : 12;
-  const hpScore = Math.round(clamp(state.player.hp / state.player.maxHp, 0, 1) * 25);
-  const comboScore = Math.min(20, state.maxCombo * 4);
-  const precisionScore = Math.min(15, state.precisionDodges * 5);
-  const damagePenalty = Math.min(20, Math.floor((state.damageTaken / state.player.maxHp) * 30));
-  const score = clamp(clearScore + hpScore + comboScore + precisionScore - damagePenalty, 0, 100);
+  const { score } = getCombatTrainingRankBreakdown(state);
 
   if (score >= 85) {
     return { rank: "S", score };
@@ -163,6 +167,24 @@ export function getCombatTrainingRank(state: CombatState): { rank: CombatRank; s
   }
 
   return { rank: "C", score };
+}
+
+export function getCombatTrainingRankBreakdown(state: CombatState): CombatRankBreakdown {
+  const clearScore = state.status === "victory" ? 35 : state.status === "defeat" ? 0 : 12;
+  const hpScore = Math.round(clamp(state.player.hp / state.player.maxHp, 0, 1) * 25);
+  const comboScore = Math.min(20, state.maxCombo * 4);
+  const precisionScore = Math.min(15, state.precisionDodges * 5);
+  const damagePenalty = Math.min(20, Math.floor((state.damageTaken / state.player.maxHp) * 30));
+  const score = clamp(clearScore + hpScore + comboScore + precisionScore - damagePenalty, 0, 100);
+
+  return {
+    clearScore,
+    hpScore,
+    comboScore,
+    precisionScore,
+    damagePenalty,
+    score,
+  };
 }
 
 export function createNextCombatTrainingWave(state: CombatState, profile: GameProfile, heroPower: number): CombatState {
