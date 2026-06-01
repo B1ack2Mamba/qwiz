@@ -1017,15 +1017,24 @@ button {
 }
 
 .squad-objective-action {
+  display: block;
   min-height: 30px;
   padding: 7px 10px;
+  border: 0;
   border-radius: 999px;
   background: var(--mint);
   color: var(--teal-dark) !important;
+  cursor: pointer;
+  font: inherit;
   font-size: 12px !important;
   font-weight: 900;
   text-align: center;
   white-space: nowrap;
+}
+
+.squad-objective-action:hover,
+.squad-objective-action:focus-visible {
+  background: #c8eadf;
 }
 
 .game-layout {

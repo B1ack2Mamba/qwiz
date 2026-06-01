@@ -17,6 +17,7 @@ import {
   getWeekStartKey,
 } from "../lib/qwizData";
 import {
+  CompanyObjectiveId,
   DailyMission,
   Dungeon,
   Enhancement,
@@ -127,6 +128,7 @@ export default function HomePage() {
   const heroPower = profile ? getPower(profile) : 0;
   const battlePlan = profile ? getBattleReadinessPlan(profile, rankedEmployees.length) : null;
   const companyObjective = profile ? getCompanyObjective(profile, rankedEmployees.length) : null;
+  const companyObjectiveSection = companyObjective ? getObjectiveSection(companyObjective.id) : "hero";
   const monthlyReadiness = battlePlan?.readiness || 0;
   const battleContributionCost = profile ? getBattleContributionCost(profile) : {};
   const battleContributionGain = profile ? getBattleContributionGain(profile) : 0;
@@ -533,7 +535,9 @@ export default function HomePage() {
               <strong>{companyObjective.title}</strong>
               <span>{companyObjective.detail}</span>
             </div>
-            <span className="squad-objective-action">{companyObjective.action}</span>
+            <button className="squad-objective-action" onClick={() => openSection(companyObjectiveSection)} type="button">
+              {companyObjective.action}
+            </button>
           </section>
         )}
 
@@ -905,6 +909,22 @@ function getProfessionChangeLabel(mode: ReturnType<typeof getProfessionChangeMod
   }
 
   return "Не хватает ресурсов";
+}
+
+function getObjectiveSection(objectiveId: CompanyObjectiveId): GameSectionId {
+  if (objectiveId === "mission") {
+    return "missions";
+  }
+
+  if (objectiveId === "craft" || objectiveId === "dungeon") {
+    return "craft";
+  }
+
+  if (objectiveId === "battle") {
+    return "battle";
+  }
+
+  return "hero";
 }
 
 function formatResourceList(resources: Partial<Record<keyof typeof resourceLabels, number>>) {
