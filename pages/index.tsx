@@ -25,6 +25,8 @@ import {
   CombatTrainingRewardRank,
   GameProfile,
   PathfinderExpedition,
+  PathfinderExpeditionId,
+  PathfinderMiniGameId,
   ProfessionId,
   TeamDirectiveId,
   battleReadinessTiers,
@@ -88,6 +90,36 @@ const gameSections: Array<{ id: GameSectionId; label: string }> = [
 ];
 const directivePuzzleMissionIds = new Set(["knowledge", "maze", "merge", "cipher"]);
 
+type PathfinderChallengeState = {
+  expeditionId: PathfinderExpeditionId;
+  selected: string[];
+  solved: boolean;
+};
+
+type PathfinderChallengeConfig = {
+  hint: string;
+  options: string[];
+  sequence: string[];
+};
+
+const pathfinderChallengeConfigs: Record<PathfinderMiniGameId, PathfinderChallengeConfig> = {
+  maze: {
+    hint: "Пометка маршрута: верхний коридор, правый переход, правый переход, нижняя арка.",
+    options: ["Север", "Восток", "Юг", "Запад"],
+    sequence: ["Север", "Восток", "Восток", "Юг"],
+  },
+  puzzle: {
+    hint: "Печать раскрывается от источника к форме: руна, ключ, печать.",
+    options: ["Ключ", "Печать", "Руна", "Осколок"],
+    sequence: ["Руна", "Ключ", "Печать"],
+  },
+  lock: {
+    hint: "На механизме видны свежие царапины: II, IV, I.",
+    options: ["I", "II", "III", "IV"],
+    sequence: ["II", "IV", "I"],
+  },
+};
+
 type ToastState = {
   message: string;
   visible: boolean;
@@ -121,6 +153,7 @@ export default function HomePage() {
   const [activeSection, setActiveSection] = useState<GameSectionId>("hero");
   const [toast, setToast] = useState<ToastState>({ message: "", visible: false });
   const [upgradeFlash, setUpgradeFlash] = useState<UpgradeFlashState | null>(null);
+  const [pathfinderChallenge, setPathfinderChallenge] = useState<PathfinderChallengeState | null>(null);
 
   const todayKey = useMemo(() => getTodayKey(), []);
   const weekStartKey = useMemo(() => getWeekStartKey(todayKey), [todayKey]);
@@ -353,8 +386,64 @@ export default function HomePage() {
     );
   }
 
+  function startPathfinderExpedition(expedition: PathfinderExpedition) {
+    if (!profile) {
+      return;
+    }
+
+    if (!canRunPathfinderExpedition(profile, expedition)) {
+      updateProfile(profile, getPathfinderExpeditionLockHint(profile, expedition));
+      return;
+    }
+
+    setPathfinderChallenge({
+      expeditionId: expedition.id,
+      selected: [],
+      solved: false,
+    });
+    showToast(`${getPathfinderMiniGame(expedition.miniGameId).name}: вылазка началась.`);
+  }
+
+  function selectPathfinderChallengeStep(expedition: PathfinderExpedition, value: string) {
+    if (!pathfinderChallenge || pathfinderChallenge.expeditionId !== expedition.id || pathfinderChallenge.solved) {
+      return;
+    }
+
+    const sequence = getPathfinderChallengeConfig(expedition).sequence;
+    const expected = sequence[pathfinderChallenge.selected.length];
+    const selected = value === expected ? [...pathfinderChallenge.selected, value] : [];
+    const solved = selected.length === sequence.length;
+
+    setPathfinderChallenge({
+      ...pathfinderChallenge,
+      selected,
+      solved,
+    });
+
+    if (solved) {
+      showToast("Мини-игра решена. Тайник можно забрать.");
+    }
+  }
+
+  function resetPathfinderChallenge(expedition: PathfinderExpedition) {
+    setPathfinderChallenge((current) =>
+      current?.expeditionId === expedition.id
+        ? {
+            expeditionId: expedition.id,
+            selected: [],
+            solved: false,
+          }
+        : current,
+    );
+  }
+
   function runPathfinderExpedition(expedition: PathfinderExpedition) {
     if (!profile) {
+      return;
+    }
+
+    if (pathfinderChallenge?.expeditionId !== expedition.id || !pathfinderChallenge.solved) {
+      showToast("Сначала решите мини-игру следопыта.");
       return;
     }
 
@@ -362,6 +451,7 @@ export default function HomePage() {
     const previousBlueprints = profile.discoveredBlueprints.length;
     const nextProfile = completePathfinderExpedition(profile, expedition);
     const discoveredBlueprints = nextProfile.discoveredBlueprints.length - previousBlueprints;
+    setPathfinderChallenge(null);
     updateProfile(
       nextProfile,
       nextProfile.completedPathfinderExpeditions.length > previousRuns
@@ -790,9 +880,13 @@ export default function HomePage() {
               <div className="pathfinder-expedition-list">
                 {pathfinderExpeditions.map((expedition) => (
                   <PathfinderExpeditionRow
+                    challenge={pathfinderChallenge}
                     expedition={expedition}
                     key={expedition.id}
-                    onRun={() => runPathfinderExpedition(expedition)}
+                    onClaim={() => runPathfinderExpedition(expedition)}
+                    onReset={() => resetPathfinderChallenge(expedition)}
+                    onStart={() => startPathfinderExpedition(expedition)}
+                    onStep={(value) => selectPathfinderChallengeStep(expedition, value)}
                     profile={profile}
                   />
                 ))}
@@ -1073,6 +1167,10 @@ function getMissionBonusNotes(profile: GameProfile, mission: DailyMission) {
   return notes;
 }
 
+function getPathfinderChallengeConfig(expedition: PathfinderExpedition) {
+  return pathfinderChallengeConfigs[expedition.miniGameId];
+}
+
 function EnhancementCard({
   enhancement,
   isUpgrading,
@@ -1140,15 +1238,24 @@ function EnhancementCard({
 }
 
 function PathfinderExpeditionRow({
+  challenge,
   expedition,
-  onRun,
+  onClaim,
+  onReset,
+  onStart,
+  onStep,
   profile,
 }: {
+  challenge: PathfinderChallengeState | null;
   expedition: PathfinderExpedition;
-  onRun: () => void;
+  onClaim: () => void;
+  onReset: () => void;
+  onStart: () => void;
+  onStep: (value: string) => void;
   profile: GameProfile;
 }) {
   const completed = profile.completedPathfinderExpeditions.includes(expedition.id);
+  const activeChallenge = challenge?.expeditionId === expedition.id ? challenge : null;
   const currentPower = getPathfinderExpeditionPower(profile, expedition);
   const outcome = getPathfinderExpeditionOutcome(profile, expedition);
   const powerMet = currentPower >= expedition.requiredPower;
@@ -1156,7 +1263,19 @@ function PathfinderExpeditionRow({
   const miniGame = getPathfinderMiniGame(expedition.miniGameId);
   const lockHint = getPathfinderExpeditionLockHint(profile, expedition);
   const blueprintNames = expedition.blueprintIds.map((blueprintId) => getEquipment(blueprintId).name);
-  const actionLabel = completed ? "Разведано" : profile.energy <= 0 ? "Нет энергии" : canRun ? miniGame.action : "Закрыто";
+  const actionLabel = completed
+    ? "Разведано"
+    : activeChallenge?.solved
+      ? "Забрать"
+      : activeChallenge
+        ? "Мини-игра"
+        : profile.energy <= 0
+          ? "Нет энергии"
+          : canRun
+            ? miniGame.action
+            : "Закрыто";
+  const actionDisabled = completed || (!activeChallenge && !canRun) || (Boolean(activeChallenge) && !activeChallenge?.solved);
+  const actionHandler = activeChallenge?.solved ? onClaim : onStart;
 
   return (
     <div className={`pathfinder-expedition-row${completed ? " is-cleared" : ""}`}>
@@ -1174,6 +1293,14 @@ function PathfinderExpeditionRow({
           ))}
         </div>
         <span className={`dungeon-lock-hint${canRun ? " is-ready" : ""}`}>{lockHint}</span>
+        {activeChallenge && (
+          <PathfinderMiniGameBoard
+            challenge={activeChallenge}
+            expedition={expedition}
+            onReset={onReset}
+            onStep={onStep}
+          />
+        )}
       </div>
       <div className="dungeon-status">
         <span className={powerMet ? "is-met" : ""}>
@@ -1188,8 +1315,49 @@ function PathfinderExpeditionRow({
           rewards={outcome.resources}
         />
       </div>
-      <button className="secondary-button compact" disabled={!canRun} onClick={onRun} type="button">
+      <button className="secondary-button compact" disabled={actionDisabled} onClick={actionHandler} type="button">
         {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function PathfinderMiniGameBoard({
+  challenge,
+  expedition,
+  onReset,
+  onStep,
+}: {
+  challenge: PathfinderChallengeState;
+  expedition: PathfinderExpedition;
+  onReset: () => void;
+  onStep: (value: string) => void;
+}) {
+  const config = getPathfinderChallengeConfig(expedition);
+  const miniGame = getPathfinderMiniGame(expedition.miniGameId);
+
+  return (
+    <div className={`pathfinder-minigame-board is-${expedition.miniGameId}`}>
+      <span>{config.hint}</span>
+      <div className="pathfinder-step-track" aria-label={miniGame.name}>
+        {config.sequence.map((_, index) => (
+          <span
+            className={`${index < challenge.selected.length ? "is-done" : ""}${index === challenge.selected.length ? " is-current" : ""}`}
+            key={`${expedition.id}-${index}`}
+          >
+            {index < challenge.selected.length ? challenge.selected[index] : index + 1}
+          </span>
+        ))}
+      </div>
+      <div className="pathfinder-choice-grid">
+        {config.options.map((option) => (
+          <button disabled={challenge.solved} key={option} onClick={() => onStep(option)} type="button">
+            {option}
+          </button>
+        ))}
+      </div>
+      <button className="secondary-button compact" disabled={challenge.selected.length === 0 && !challenge.solved} onClick={onReset} type="button">
+        Сбросить
       </button>
     </div>
   );
